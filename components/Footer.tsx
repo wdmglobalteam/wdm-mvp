@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Github, Twitter, Linkedin, Mail, ArrowRight } from 'lucide-react';
+import { FaGithub, FaTwitter, FaLinkedin, FaEnvelope } from 'react-icons/fa';
+import { HiArrowRight } from 'react-icons/hi';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -13,10 +14,10 @@ const footerLinks = {
 };
 
 const socialLinks = [
-	{ icon: Github, href: '#', label: 'Follow on GitHub' },
-	{ icon: Twitter, href: '#', label: 'Follow on Twitter' },
-	{ icon: Linkedin, href: '#', label: 'Connect on LinkedIn' },
-	{ icon: Mail, href: '#', label: 'Send us an email' },
+	{ icon: FaGithub, href: '#', label: 'Follow on GitHub' },
+	{ icon: FaTwitter, href: '#', label: 'Follow on Twitter' },
+	{ icon: FaLinkedin, href: '#', label: 'Connect on LinkedIn' },
+	{ icon: FaEnvelope, href: '#', label: 'Send us an email' },
 ];
 
 export function Footer() {
@@ -59,7 +60,7 @@ export function Footer() {
 						</motion.div>
 						<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
 							<Button className="bg-[#00ff9f] text-black hover:bg-[#00ff9f]/90 border-[#00ff9f] hover:shadow-[0_0_20px_rgba(0,255,159,0.5)] transition-all duration-300">
-								<ArrowRight className="w-4 h-4" />
+								<HiArrowRight className="w-4 h-4" />
 							</Button>
 						</motion.div>
 					</div>

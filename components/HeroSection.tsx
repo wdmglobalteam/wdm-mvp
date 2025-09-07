@@ -5,11 +5,11 @@ import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 
 const pillars = [
-	{ id: 1, name: 'HTML & CSS Foundations', x: 20, y: 60, active: true },
-	{ id: 2, name: 'JavaScript Fundamentals', x: 35, y: 30, active: false },
-	{ id: 3, name: 'React Components', x: 50, y: 20, active: false },
-	{ id: 4, name: 'Advanced Styling', x: 65, y: 30, active: false },
-	{ id: 5, name: 'State Management', x: 80, y: 60, active: false },
+	{ id: 1, name: 'HTML & CSS Foundations', x: 20, y: 60, active: true, size: 2 },
+	{ id: 2, name: 'JavaScript Fundamentals', x: 35, y: 30, active: false, size: 2 },
+	{ id: 3, name: 'React Components', x: 50, y: 20, active: false, size: 2 },
+	{ id: 4, name: 'Advanced Styling', x: 65, y: 30, active: false, size: 2 },
+	{ id: 5, name: 'State Management', x: 80, y: 60, active: false, size: 2 },
 ];
 
 const connections = [
@@ -19,19 +19,34 @@ const connections = [
 	{ from: 4, to: 5 },
 ];
 
+// Generate extra ambient nodes for dynamic movement
+const extraNodes = Array.from({ length: 30 }, (_, i) => ({
+	id: 100 + i,
+	x: Math.random() * 100,
+	y: Math.random() * 80,
+	size: Math.random() * 1.5 + 0.5,
+}));
+
 export function HeroSection() {
 	const [hoveredPillar, setHoveredPillar] = useState<number | null>(null);
+	const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 	const [mounted, setMounted] = useState(false);
 
+	useEffect(() => setMounted(true), []);
+
+	// Track cursor for subtle particle reaction
 	useEffect(() => {
-		setMounted(true);
+		const handleMouseMove = (e: MouseEvent) => {
+			setMousePos({ x: e.clientX, y: e.clientY });
+		};
+		window.addEventListener('mousemove', handleMouseMove);
+		return () => window.removeEventListener('mousemove', handleMouseMove);
 	}, []);
 
 	const getConnectionPath = (from: (typeof pillars)[0], to: (typeof pillars)[0]) => {
 		const dx = to.x - from.x;
 		const midX = from.x + dx * 0.5;
 		const midY = Math.min(from.y, to.y) - 10;
-
 		return `M ${from.x} ${from.y} Q ${midX} ${midY} ${to.x} ${to.y}`;
 	};
 
@@ -39,23 +54,28 @@ export function HeroSection() {
 
 	return (
 		<section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-			{/* Starfield Background */}
+			{/* Particle Background */}
 			<div className="absolute inset-0">
-				{[...Array(50)].map((_, i) => (
+				{[...extraNodes, ...pillars].map((node, i) => (
 					<motion.div
 						key={i}
-						className="absolute w-1 h-1 bg-white/20 rounded-full"
+						className="absolute bg-white/20 rounded-full"
 						style={{
-							left: `${Math.random() * 100}%`,
-							top: `${Math.random() * 100}%`,
+							width: (node.size ?? 2) * 2,
+							height: (node.size ?? 2) * 2,
+							left: `${node.x}%`,
+							top: `${node.y}%`,
 						}}
 						animate={{
+							x: [-mousePos.x * 0.005 + Math.sin(i) * 5, mousePos.x * 0.005 + Math.sin(i + 1) * 5],
+							y: [-mousePos.y * 0.005 + Math.cos(i) * 5, mousePos.y * 0.005 + Math.cos(i + 1) * 5],
 							opacity: [0.2, 0.8, 0.2],
 							scale: [1, 1.5, 1],
 						}}
 						transition={{
-							duration: 2 + Math.random() * 3,
+							duration: 4 + Math.random() * 3,
 							repeat: Infinity,
+							repeatType: 'mirror',
 							delay: Math.random() * 2,
 						}}
 					/>
@@ -73,7 +93,6 @@ export function HeroSection() {
 					{connections.map((conn, index) => {
 						const fromPillar = pillars.find((p) => p.id === conn.from)!;
 						const toPillar = pillars.find((p) => p.id === conn.to)!;
-
 						return (
 							<motion.path
 								key={index}
@@ -88,7 +107,7 @@ export function HeroSection() {
 						);
 					})}
 
-					{/* Gradient Definitions */}
+					{/* Gradients */}
 					<defs>
 						<linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
 							<stop offset="0%" stopColor="#00ff9f" stopOpacity="0.8">
@@ -111,7 +130,6 @@ export function HeroSection() {
 								/>
 							</stop>
 						</linearGradient>
-
 						<radialGradient id="pillarGlow" cx="50%" cy="50%" r="50%">
 							<stop offset="0%" stopColor="#00ff9f" stopOpacity="0.8" />
 							<stop offset="70%" stopColor="#00ff9f" stopOpacity="0.3" />
@@ -122,7 +140,7 @@ export function HeroSection() {
 					{/* Pillars */}
 					{pillars.map((pillar) => (
 						<g key={pillar.id}>
-							{/* Glow Effect */}
+							{/* Glow */}
 							{(pillar.active || hoveredPillar === pillar.id) && (
 								<motion.circle
 									cx={pillar.x}
@@ -130,15 +148,12 @@ export function HeroSection() {
 									r="4"
 									fill="url(#pillarGlow)"
 									initial={{ scale: 0 }}
-									animate={{ scale: pillar.active ? [1, 1.2, 1] : 1 }}
-									transition={{
-										duration: pillar.active ? 2 : 0.3,
-										repeat: pillar.active ? Infinity : 0,
-									}}
+									animate={{ scale: pillar.active ? [1, 1.3, 1] : 1 }}
+									transition={{ duration: pillar.active ? 2 : 0.3, repeat: pillar.active ? Infinity : 0 }}
 								/>
 							)}
 
-							{/* Main Pillar Node */}
+							{/* Main Node */}
 							<motion.circle
 								cx={pillar.x}
 								cy={pillar.y}
@@ -149,7 +164,7 @@ export function HeroSection() {
 								className="cursor-pointer"
 								onMouseEnter={() => setHoveredPillar(pillar.id)}
 								onMouseLeave={() => setHoveredPillar(null)}
-								whileHover={{ scale: 1.2 }}
+								whileHover={{ scale: 1.25 }}
 								whileTap={{ scale: 0.9 }}
 							/>
 
@@ -166,7 +181,7 @@ export function HeroSection() {
 										width="16"
 										height="4"
 										rx="1"
-										fill="rgba(0, 0, 0, 0.8)"
+										fill="rgba(0,0,0,0.8)"
 										stroke="#00ff9f"
 										strokeWidth="0.1"
 									/>
