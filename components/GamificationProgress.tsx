@@ -46,6 +46,7 @@ const badges = [
 export function GamificationProgress() {
 	const [showFutureJourney, setShowFutureJourney] = useState(false);
 	const [animateConnections, setAnimateConnections] = useState(false);
+	const [hoveredJourneyItem, setHoveredJourneyItem] = useState<number | null>(null);
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
@@ -335,28 +336,211 @@ export function GamificationProgress() {
 
 					{showFutureJourney && (
 						<motion.div
-							className="mt-8 grid md:grid-cols-4 gap-4 opacity-50"
+							className="mt-8 grid md:grid-cols-4 gap-4"
 							initial={{ opacity: 0, height: 0 }}
-							animate={{ opacity: 0.5, height: 'auto' }}
+							animate={{ opacity: 1, height: 'auto' }}
 							exit={{ opacity: 0, height: 0 }}
 							transition={{ duration: 0.5 }}
 						>
-							{['Advanced React', 'Node.js Backend', 'Database Design', 'Deployment'].map(
-								(future, index) => (
+							{[
+								{
+									name: 'Advanced React',
+									icon: '⚛️',
+									status: 'next',
+									description: 'Hooks, Context & Performance',
+								},
+								{
+									name: 'Node.js Backend',
+									icon: '🟢',
+									status: 'upcoming',
+									description: 'APIs, Express & Security',
+								},
+								{
+									name: 'Database Design',
+									icon: '🗄️',
+									status: 'upcoming',
+									description: 'SQL, NoSQL & Relations',
+								},
+								{ name: 'Deployment', icon: '🚀', status: 'upcoming', description: 'Docker, AWS & CI/CD' },
+							].map((future, index) => {
+								const isNext = future.status === 'next';
+								const isHovered = hoveredJourneyItem === index;
+
+								return (
 									<motion.div
-										key={future}
-										className="p-4 border border-dashed border-gray-600 rounded-lg"
+										key={future.name}
+										className={`relative p-4 border rounded-lg cursor-pointer transition-all duration-300 ${
+											isNext
+												? 'border-[#00ff9f]/60 bg-gradient-to-br from-[#00ff9f]/10 to-[#39e6ff]/5'
+												: 'border-dashed border-gray-600 hover:border-gray-500'
+										}`}
 										initial={{ opacity: 0, y: 20 }}
-										animate={{ opacity: 0.7, y: 0 }}
+										animate={{
+											opacity: isNext ? 1 : isHovered ? 0.9 : 0.6,
+											y: 0,
+											scale: isHovered ? 1.02 : 1,
+										}}
 										transition={{ delay: index * 0.1, duration: 0.3 }}
+										onHoverStart={() => setHoveredJourneyItem(index)}
+										onHoverEnd={() => setHoveredJourneyItem(null)}
+										whileHover={{
+											borderColor: isNext ? '#00ff9f' : '#39e6ff',
+											boxShadow: isNext
+												? '0 0 20px rgba(0, 255, 159, 0.3)'
+												: '0 0 15px rgba(57, 230, 255, 0.2)',
+										}}
 									>
-										<div className="w-12 h-12 border-2 border-dashed border-gray-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-											<div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
+										{/* Glow effect for next item */}
+										{isNext && (
+											<motion.div
+												className="absolute inset-0 bg-gradient-to-br from-[#00ff9f]/20 to-[#39e6ff]/10 rounded-lg"
+												animate={{
+													opacity: [0.1, 0.3, 0.1],
+													scale: [1, 1.02, 1],
+												}}
+												transition={{ duration: 3, repeat: Infinity }}
+											/>
+										)}
+
+										<div
+											className={`relative w-12 h-12 border-2 rounded-full mx-auto mb-3 flex items-center justify-center ${
+												isNext
+													? 'border-[#00ff9f] bg-[#00ff9f]/10'
+													: isHovered
+													? 'border-[#39e6ff] bg-[#39e6ff]/5'
+													: 'border-dashed border-gray-500'
+											}`}
+										>
+											{isNext ? (
+												<motion.div
+													className="text-lg"
+													animate={{
+														rotate: [0, 5, -5, 0],
+														scale: [1, 1.1, 1],
+													}}
+													transition={{ duration: 2, repeat: Infinity }}
+												>
+													{future.icon}
+												</motion.div>
+											) : isHovered ? (
+												<motion.div
+													className="text-lg"
+													initial={{ scale: 0.5, opacity: 0 }}
+													animate={{ scale: 1, opacity: 1 }}
+													transition={{ duration: 0.3 }}
+												>
+													{future.icon}
+												</motion.div>
+											) : (
+												<motion.div
+													className="w-2 h-2 bg-gray-500 rounded-full"
+													animate={
+														isNext
+															? {
+																	backgroundColor: ['#00ff9f', '#39e6ff', '#00ff9f'],
+																	scale: [1, 1.2, 1],
+															  }
+															: isHovered
+															? {
+																	backgroundColor: '#39e6ff',
+																	scale: 1.2,
+															  }
+															: {
+																	opacity: [0.5, 1, 0.5],
+															  }
+													}
+													transition={{ duration: isNext ? 2 : 1.5, repeat: Infinity }}
+												/>
+											)}
+
+											{/* Active indicator */}
+											{isNext && (
+												<motion.div
+													className="absolute -top-1 -right-1 w-4 h-4 bg-[#00ff9f] rounded-full flex items-center justify-center"
+													initial={{ scale: 0, rotate: -180 }}
+													animate={{ scale: 1, rotate: 0 }}
+													transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+												>
+													<div className="w-2 h-2 bg-black rounded-full" />
+												</motion.div>
+											)}
 										</div>
-										<p className="text-gray-400 text-sm">{future}</p>
+
+										<motion.p
+											className={`text-sm mb-1 ${
+												isNext ? 'text-white' : isHovered ? 'text-gray-200' : 'text-gray-400'
+											}`}
+											animate={
+												isNext
+													? {
+															color: ['#ffffff', '#00ff9f', '#ffffff'],
+													  }
+													: {}
+											}
+											transition={{ duration: 3, repeat: Infinity }}
+										>
+											{future.name}
+										</motion.p>
+
+										<motion.p
+											className={`text-xs ${
+												isNext ? 'text-[#00ff9f]' : isHovered ? 'text-[#39e6ff]' : 'text-gray-500'
+											}`}
+											initial={{ opacity: 0, height: 0 }}
+											animate={{
+												opacity: isNext || isHovered ? 1 : 0,
+												height: isNext || isHovered ? 'auto' : 0,
+											}}
+											transition={{ duration: 0.3 }}
+										>
+											{future.description}
+										</motion.p>
+
+										{/* Progress hint for next item */}
+										{isNext && (
+											<motion.div
+												className="absolute bottom-2 left-2 right-2 h-1 bg-gray-700 rounded-full overflow-hidden"
+												initial={{ opacity: 0 }}
+												animate={{ opacity: 1 }}
+												transition={{ delay: 1 }}
+											>
+												<motion.div
+													className="h-full bg-gradient-to-r from-[#00ff9f] to-[#39e6ff]"
+													initial={{ width: 0 }}
+													animate={{ width: '15%' }}
+													transition={{ duration: 2, delay: 1.5 }}
+												/>
+											</motion.div>
+										)}
+
+										{/* Floating particles for active item */}
+										{isNext && (
+											<>
+												{[...Array(3)].map((_, particleIndex) => (
+													<motion.div
+														key={particleIndex}
+														className="absolute w-1 h-1 bg-[#00ff9f] rounded-full opacity-60"
+														style={{
+															left: `${20 + Math.random() * 60}%`,
+															top: `${20 + Math.random() * 60}%`,
+														}}
+														animate={{
+															y: [-5, 5, -5],
+															x: [-3, 3, -3],
+															opacity: [0.3, 0.8, 0.3],
+														}}
+														transition={{
+															duration: 2 + Math.random(),
+															delay: particleIndex * 0.5,
+															repeat: Infinity,
+														}}
+													/>
+												))}
+											</>
+										)}
 									</motion.div>
-								)
-							)}
+								);
+							})}
 						</motion.div>
 					)}
 				</motion.div>
