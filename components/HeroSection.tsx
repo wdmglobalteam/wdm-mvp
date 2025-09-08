@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
+import Link from 'next/link';
 import { Button } from './ui/button';
 import { Play, Code } from 'lucide-react';
 
@@ -481,19 +482,21 @@ export function HeroSection() {
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.8, delay: 0.8 }}
 				>
-					<Button
-						size="lg"
-						className="bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/25 transition-all duration-300 group relative overflow-hidden"
-					>
-						<motion.div
-							className="absolute inset-0 bg-white/20"
-							initial={{ x: '-100%' }}
-							whileHover={{ x: '100%' }}
-							transition={{ duration: 0.6 }}
-						/>
-						<Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-						Start Learning
-					</Button>
+					<Link href="/auth">
+						<Button
+							size="lg"
+							className="bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/25 transition-all duration-300 group relative overflow-hidden"
+						>
+							<motion.div
+								className="absolute inset-0 bg-white/20"
+								initial={{ x: '-100%' }}
+								whileHover={{ x: '100%' }}
+								transition={{ duration: 0.6 }}
+							/>
+							<Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+							Start Learning
+						</Button>
+					</Link>
 
 					<Button
 						variant="outline"

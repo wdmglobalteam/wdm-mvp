@@ -10,6 +10,7 @@ import { AuthBackground } from '@/components/AuthBackground';
 import PasswordStrengthMeter, {
 	validatePasswordComplexity,
 } from '@/components/PasswordStrengthMeter';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 const FULAFIA_SCHOOL_ID = 'db2c8a7d-841f-41a9-9c07-f3fd61d8a646';
 
@@ -34,26 +35,24 @@ export default function AuthPage() {
 	const [message, setMessage] = useState('');
 
 	// ============================
-	// Regex + Formatting Helpers
+	// Helpers
 	// ============================
 
 	const normalizeWhatsapp = (value: string): string | null => {
-		const cleaned = value.replace(/\D/g, ''); // remove non-digits
-		if (/^(?:\+?234|0)/.test(value)) {
-			let normalized = cleaned;
-			if (normalized.startsWith('0')) {
-				normalized = '234' + normalized.slice(1);
-			} else if (normalized.startsWith('234')) {
-				normalized = '234' + normalized.slice(3);
+		try {
+			const parsed = parsePhoneNumberFromString(value, 'NG'); // assume NG by default
+			if (parsed && parsed.isValid()) {
+				return parsed.number; // always in E.164, e.g. 2349064354586
 			}
-			if (/^234\d{10}$/.test(normalized)) return normalized;
+		} catch {
+			return null;
 		}
 		return null;
 	};
 
 	const validateMatric = (value: string): boolean => {
-		// e.g. 2024/CP/CSC/0229
-		return /^\d{4}\/[A-Z]{2,}\/[A-Z]{2,}\/\d{3,}$/.test(value.trim());
+		const formatted = value.trim().toUpperCase();
+		return /^\d{4}\/[A-Z]{2,}\/[A-Z]{2,}\/\d{3,}$/.test(formatted);
 	};
 
 	// ============================
@@ -77,31 +76,34 @@ export default function AuthPage() {
 	}, [whatsapp]);
 
 	// ============================
-	// Uniqueness Checks
+	// Uniqueness Checks (debounced)
 	// ============================
 
 	useEffect(() => {
-		let active = true;
-		if (matricValid) {
+		if (!matricValid) {
+			setMatricUnique(null);
+			return;
+		}
+		const timeout = setTimeout(() => {
+			const formatted = matric.trim().toUpperCase();
 			supabase
 				.from('profiles')
 				.select('id')
 				.eq('school_id', FULAFIA_SCHOOL_ID)
-				.eq('matric_number', matric)
+				.eq('matric_number', formatted)
 				.then(({ data }) => {
-					if (active) setMatricUnique(data?.length === 0);
+					setMatricUnique(data?.length === 0);
 				});
-		} else {
-			setMatricUnique(null);
-		}
-		return () => {
-			active = false;
-		};
+		}, 500); // debounce 500ms
+		return () => clearTimeout(timeout);
 	}, [matric, matricValid]);
 
 	useEffect(() => {
-		let active = true;
-		if (whatsappValid) {
+		if (!whatsappValid) {
+			setWhatsappUnique(null);
+			return;
+		}
+		const timeout = setTimeout(() => {
 			const normalized = normalizeWhatsapp(whatsapp);
 			if (!normalized) return;
 			supabase
@@ -109,14 +111,10 @@ export default function AuthPage() {
 				.select('id')
 				.eq('whatsapp_number', normalized)
 				.then(({ data }) => {
-					if (active) setWhatsappUnique(data?.length === 0);
+					setWhatsappUnique(data?.length === 0);
 				});
-		} else {
-			setWhatsappUnique(null);
-		}
-		return () => {
-			active = false;
-		};
+		}, 500);
+		return () => clearTimeout(timeout);
 	}, [whatsapp, whatsappValid]);
 
 	// ============================
@@ -130,7 +128,9 @@ export default function AuthPage() {
 
 		if (mode === 'signup') {
 			const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
-			if (!normalizedWhatsapp || !matricValid) {
+			const formattedMatric = matric.trim().toUpperCase();
+
+			if (!normalizedWhatsapp || !validateMatric(formattedMatric)) {
 				setMessage('Invalid matric or WhatsApp format.');
 				setLoading(false);
 				return;
@@ -162,7 +162,7 @@ export default function AuthPage() {
 							display_name: email.split('@')[0],
 							timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 							school_id: FULAFIA_SCHOOL_ID,
-							matric_number: matric,
+							matric_number: formattedMatric,
 							whatsapp_number: normalizedWhatsapp,
 						}),
 					});
@@ -267,7 +267,7 @@ export default function AuthPage() {
 											? 'Number already registered'
 											: `Formatted: ${normalizeWhatsapp(whatsapp)}`
 										: whatsapp
-										? 'Invalid Nigerian number'
+										? 'Invalid number'
 										: ''
 								}
 								className="bg-gray-800/60 text-white border-gray-700"
