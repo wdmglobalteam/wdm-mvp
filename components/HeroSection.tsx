@@ -37,19 +37,16 @@ interface AmbientParticle {
 	x: number;
 	y: number;
 	size: number;
+	// stable per-instance animation settings:
+	duration: number;
+	delay: number;
+	offset: number;
 }
 
 export function HeroSection() {
 	const [nodes, setNodes] = useState<Node[]>([]);
 	const [particles, setParticles] = useState<Particle[]>([]);
-	const [ambientParticles] = useState<AmbientParticle[]>(() =>
-		Array.from({ length: 30 }, (_, i) => ({
-			id: i,
-			x: Math.random() * 100,
-			y: Math.random() * 100,
-			size: Math.random() * 1.5 + 0.5,
-		}))
-	);
+	const [ambientParticles, setAmbientParticles] = useState<AmbientParticle[]>([]);
 	const [hoveredNode, setHoveredNode] = useState<number | null>(null);
 	const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 	const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -62,7 +59,37 @@ export function HeroSection() {
 	const springX = useSpring(mouseX, { stiffness: 150, damping: 30 });
 	const springY = useSpring(mouseY, { stiffness: 150, damping: 30 });
 
-	// Initialize nodes with constellation-like positioning
+	// stable ID generator for particles (avoid Date.now+Math.random)
+	const particleIdRef = useRef(0);
+
+	// stable per-metric delays so animations don't re-seed every render
+	const metricItems = [
+		{ value: '500+', label: 'Students' },
+		{ value: '50+', label: 'Projects' },
+		{ value: '98%', label: 'Success Rate' },
+	];
+	const metricDelaysRef = useRef<number[]>(metricItems.map(() => Math.random() * 0.6));
+
+	// Generate ambient particles only client-side ONCE and store stable durations/delays
+	useEffect(() => {
+		const list: AmbientParticle[] = Array.from({ length: 30 }, (_, i) => {
+			const duration = 4 + Math.random() * 3;
+			const delay = Math.random() * 2;
+			const offset = Math.random() * Math.PI * 2;
+			return {
+				id: i,
+				x: Math.random() * 100,
+				y: Math.random() * 100,
+				size: Math.random() * 1.5 + 0.5,
+				duration,
+				delay,
+				offset,
+			};
+		});
+		setAmbientParticles(list);
+	}, []);
+
+	// Initialize nodes with constellation-like positioning (client-side effect)
 	useEffect(() => {
 		const updateDimensions = () => {
 			if (containerRef.current) {
@@ -82,14 +109,12 @@ export function HeroSection() {
 		const nodeCount = Math.min(25, Math.max(15, Math.floor(dimensions.width / 80)));
 		const newNodes: Node[] = [];
 
-		// Create galaxy-like distribution
 		for (let i = 0; i < nodeCount; i++) {
 			const angle = (i / nodeCount) * Math.PI * 2;
 			const radius = 100 + Math.random() * 200;
 			const centerX = dimensions.width / 2;
 			const centerY = dimensions.height / 2;
 
-			// Add spiral variation
 			const spiralOffset = Math.sin(angle * 3) * 50;
 			const x = centerX + Math.cos(angle) * (radius + spiralOffset) + (Math.random() - 0.5) * 100;
 			const y = centerY + Math.sin(angle) * (radius + spiralOffset) + (Math.random() - 0.5) * 100;
@@ -110,7 +135,6 @@ export function HeroSection() {
 			newNodes.push(node);
 		}
 
-		// Create connections between nearby nodes
 		newNodes.forEach((node, i) => {
 			const nearbyNodes = newNodes
 				.filter((otherNode, j) => {
@@ -131,7 +155,6 @@ export function HeroSection() {
 		setNodes(newNodes);
 	}, [dimensions]);
 
-	// Mouse tracking with smooth spring animation
 	const handleMouseMove = useCallback(
 		(e: React.MouseEvent) => {
 			if (!containerRef.current) return;
@@ -147,12 +170,12 @@ export function HeroSection() {
 		[mouseX, mouseY]
 	);
 
-	// Particle system for magical effects
 	const createParticle = useCallback(
 		(x: number, y: number, type: 'drift' | 'interaction' = 'drift') => {
 			const colors = ['#00ff9f', '#39e6ff', '#ffffff'];
+			const id = ++particleIdRef.current;
 			return {
-				id: Date.now() + Math.random(),
+				id,
 				x,
 				y,
 				vx: (Math.random() - 0.5) * (type === 'interaction' ? 4 : 0.5),
@@ -162,26 +185,22 @@ export function HeroSection() {
 				life: 0,
 				maxLife: type === 'interaction' ? 60 : 120 + Math.random() * 180,
 				color: colors[Math.floor(Math.random() * colors.length)],
-			};
+			} as Particle;
 		},
 		[]
 	);
 
-	// Animation loop for living movement
 	const animate = useCallback(
 		(currentTime: number) => {
 			if (lastTime.current === 0) lastTime.current = currentTime;
-			// const deltaTime = currentTime - lastTime.current;
 			lastTime.current = currentTime;
 
 			setNodes((prevNodes) =>
 				prevNodes.map((node) => {
-					// Gentle orbital drift
 					const time = currentTime * 0.0005;
 					const driftX = Math.sin(time * node.driftSpeed + node.id) * 15;
 					const driftY = Math.cos(time * node.driftSpeed * 0.7 + node.id) * 10;
 
-					// Mouse attraction effect
 					const distanceToMouse = Math.hypot(mousePosition.x - node.x, mousePosition.y - node.y);
 					const attractionStrength = Math.max(0, 1 - distanceToMouse / 200);
 					const attractionX = attractionStrength * (mousePosition.x - node.x) * 0.02;
@@ -196,7 +215,6 @@ export function HeroSection() {
 				})
 			);
 
-			// Update particles
 			setParticles((prevParticles) => {
 				const newParticles = prevParticles
 					.map((particle) => ({
@@ -210,7 +228,6 @@ export function HeroSection() {
 					}))
 					.filter((particle) => particle.life < particle.maxLife);
 
-				// Add ambient drifting particles
 				if (Math.random() < 0.03 && dimensions.width > 0) {
 					const edge = Math.floor(Math.random() * 4);
 					let x, y;
@@ -254,22 +271,24 @@ export function HeroSection() {
 		};
 	}, [animate]);
 
-	// Node interaction effects
 	const handleNodeHover = (nodeId: number) => {
 		setHoveredNode(nodeId);
 		const node = nodes.find((n) => n.id === nodeId);
 		if (node) {
-			// Create interaction particles
-			for (let i = 0; i < 5; i++) {
-				setParticles((prev) => [
-					...prev,
-					createParticle(
-						node.x + (Math.random() - 0.5) * 20,
-						node.y + (Math.random() - 0.5) * 20,
-						'interaction'
-					),
-				]);
-			}
+			// Batch particle creation in one state update
+			setParticles((prev) => {
+				const additions: Particle[] = [];
+				for (let i = 0; i < 5; i++) {
+					additions.push(
+						createParticle(
+							node.x + (Math.random() - 0.5) * 20,
+							node.y + (Math.random() - 0.5) * 20,
+							'interaction'
+						)
+					);
+				}
+				return [...prev, ...additions];
+			});
 		}
 	};
 
@@ -278,7 +297,7 @@ export function HeroSection() {
 			{/* Dynamic Constellation Background */}
 			<div
 				ref={containerRef}
-				className="absolute inset-0 cursor-none"
+				className="absolute inset-0"
 				onMouseMove={handleMouseMove}
 				onMouseLeave={() => setHoveredNode(null)}
 			>
@@ -286,7 +305,7 @@ export function HeroSection() {
 				{ambientParticles.map((p, i) => (
 					<motion.div
 						key={p.id}
-						className="absolute bg-white/20 rounded-full"
+						className="absolute bg-white/20 rounded-full pointer-events-none"
 						style={{
 							width: p.size * 2,
 							height: p.size * 2,
@@ -295,21 +314,21 @@ export function HeroSection() {
 						}}
 						animate={{
 							x: [
-								-mousePosition.x * 0.005 + Math.sin(i) * 5,
-								mousePosition.x * 0.005 + Math.sin(i + 1) * 5,
+								-mousePosition.x * 0.005 + Math.sin(p.offset + i) * 5,
+								mousePosition.x * 0.005 + Math.sin(p.offset + i + 1) * 5,
 							],
 							y: [
-								-mousePosition.y * 0.005 + Math.cos(i) * 5,
-								mousePosition.y * 0.005 + Math.cos(i + 1) * 5,
+								-mousePosition.y * 0.005 + Math.cos(p.offset + i) * 5,
+								mousePosition.y * 0.005 + Math.cos(p.offset + i + 1) * 5,
 							],
 							opacity: [0.2, 0.8, 0.2],
 							scale: [1, 1.5, 1],
 						}}
 						transition={{
-							duration: 4 + Math.random() * 3,
+							duration: p.duration,
 							repeat: Infinity,
 							repeatType: 'mirror',
-							delay: Math.random() * 2,
+							delay: p.delay,
 						}}
 					/>
 				))}
@@ -485,7 +504,7 @@ export function HeroSection() {
 					<Link href="/auth">
 						<Button
 							size="lg"
-							className="bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/25 transition-all duration-300 group relative overflow-hidden"
+							className="cursor-pointer bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/25 transition-all duration-300 group relative overflow-hidden"
 						>
 							<motion.div
 								className="absolute inset-0 bg-white/20"
@@ -501,7 +520,7 @@ export function HeroSection() {
 					<Button
 						variant="outline"
 						size="lg"
-						className="border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] transition-all duration-300 group"
+						className="cursor-pointer border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] transition-all duration-300 group"
 					>
 						<Code className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
 						View Curriculum
@@ -515,19 +534,18 @@ export function HeroSection() {
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.8, delay: 1.2 }}
 				>
-					{[
-						{ value: '500+', label: 'Students' },
-						{ value: '50+', label: 'Projects' },
-						{ value: '98%', label: 'Success Rate' },
-					].map((metric, index) => (
+					{metricItems.map((metric, index) => (
 						<motion.div
 							key={metric.label}
 							className="relative"
 							whileHover={{ scale: 1.05 }}
-							animate={{
-								y: Math.sin(Date.now() * 0.001 + index) * 2,
+							// use keyframe animation with stable per-metric delay stored in metricDelaysRef
+							animate={{ y: [0, -6, 0] }}
+							transition={{
+								duration: 2,
+								repeat: Infinity,
+								delay: metricDelaysRef.current[index],
 							}}
-							transition={{ duration: 2, repeat: Infinity }}
 						>
 							<div className="text-2xl md:text-3xl text-[#00ff9f] mb-1">{metric.value}</div>
 							<div className="text-sm text-gray-400">{metric.label}</div>
