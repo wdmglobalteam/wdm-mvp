@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
 					/>
 					<Button
 						type="submit"
-						className="w-full bg-gradient-to-r from-[#39e6ff] to-[#00ff9f] text-black hover:shadow-lg hover:shadow-[#39e6ff]/30 transition-all duration-300"
+						className="cursor-pointer w-full bg-gradient-to-r from-[#39e6ff] to-[#00ff9f] text-black hover:shadow-lg hover:shadow-[#39e6ff]/30 transition-all duration-300"
 					>
 						Send Reset Link
 					</Button>

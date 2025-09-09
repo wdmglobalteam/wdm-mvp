@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { motion } from 'framer-motion';
+import { FaGoogle } from 'react-icons/fa';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -117,9 +118,73 @@ export default function AuthPage() {
 		return () => clearTimeout(timeout);
 	}, [whatsapp, whatsappValid]);
 
+	useEffect(() => {
+		const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+			if (!session?.user) return;
+			const user = session.user;
+
+			// Extract info from Google
+			const displayName = user.user_metadata?.full_name || user.email?.split('@')[0];
+			const avatarUrl = user.user_metadata?.avatar_url || null;
+
+			// Ensure profile exists
+			const { data: existingProfile } = await supabase
+				.from('profiles')
+				.select('id')
+				.eq('id', user.id)
+				.single();
+
+			if (!existingProfile) {
+				// Create new profile with matric & WhatsApp entered on form
+				const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
+				const formattedMatric = matric.trim().toUpperCase();
+
+				await fetch('/api/profile', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${session.access_token}`,
+					},
+					body: JSON.stringify({
+						display_name: displayName,
+						avatar_url: avatarUrl,
+						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+						school_id: FULAFIA_SCHOOL_ID,
+						matric_number: formattedMatric,
+						whatsapp_number: normalizedWhatsapp,
+					}),
+				});
+			}
+		});
+
+		return () => listener.subscription.unsubscribe();
+	}, [matric, whatsapp]);
+
 	// ============================
 	// Handle Auth
 	// ============================
+
+	const handleGoogleSignIn = async () => {
+		setLoading(true);
+		setMessage('');
+
+		// Ensure matric & whatsapp are entered
+		if (!matric || !whatsapp) {
+			setMessage('Please enter both Matric Number and WhatsApp Number.');
+			setLoading(false);
+			return;
+		}
+
+		const { error } = await supabase.auth.signInWithOAuth({
+			provider: 'google',
+			options: {
+				redirectTo: window.location.origin, // back to same page
+			},
+		});
+
+		if (error) setMessage(error.message);
+		setLoading(false);
+	};
 
 	const handleAuth = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -173,7 +238,14 @@ export default function AuthPage() {
 		} else {
 			const { error } = await supabase.auth.signInWithPassword({ email, password });
 			if (error) {
-				setMessage(error.message);
+				// Check if error is "password not set"
+				if (error.message.includes('Invalid login credentials')) {
+					setMessage(
+						'No password set for this email. Please sign in with Google or reset your password.'
+					);
+				} else {
+					setMessage(error.message);
+				}
 				setLoading(false);
 				return;
 			}
@@ -237,7 +309,7 @@ export default function AuthPage() {
 						<>
 							<Input
 								type="text"
-								placeholder="Matric Number (2024/CP/CSC/0229)"
+								placeholder="Matric Number (1234/AB/ABC/5678)"
 								value={matric}
 								onChange={(e) => setMatric(e.target.value)}
 								isValid={matricValid ?? undefined}
@@ -273,6 +345,20 @@ export default function AuthPage() {
 								className="bg-gray-800/60 text-white border-gray-700"
 							/>
 						</>
+					)}
+
+					<Button
+						onClick={handleGoogleSignIn}
+						disabled={loading || !matricValid || !whatsappValid}
+						className="cursor-pointer w-full flex items-center justify-center gap-2 bg-white text-black hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<FaGoogle /> Sign in / Sign up with Google
+					</Button>
+
+					{(!matric || !whatsapp) && (
+						<p className="text-red-400 text-sm mt-1 animate-pulse">
+							Please enter both Matric Number and WhatsApp Number
+						</p>
 					)}
 
 					<Button

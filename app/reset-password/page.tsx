@@ -128,7 +128,7 @@ export default function ResetPasswordPage() {
 							onClick={requestNewLink}
 							disabled={resending}
 							variant="outline"
-							className="border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] flex items-center justify-center"
+							className="cursor-pointer border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] flex items-center justify-center"
 						>
 							{resending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 							{resending ? 'Sending...' : 'Request New Reset Link'}
