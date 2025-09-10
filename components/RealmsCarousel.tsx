@@ -161,7 +161,7 @@ function RealmCard({
 								<span>Certificate</span>
 							</div>
 						</div>
-						<button className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-gray-700 to-gray-600 text-white text-sm transition-all duration-200">
+						<button className="cursor-pointer w-full py-2 px-4 rounded-lg bg-gradient-to-r from-gray-700 to-gray-600 text-white text-sm transition-all duration-200">
 							View Details
 						</button>
 					</div>
