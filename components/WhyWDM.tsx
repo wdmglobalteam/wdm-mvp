@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence, MotionValue } from 'framer-motion';
 import { Card, CardContent } from './ui/card';
-import { useTypewriter } from './hooks/useTypeWriter';
+import { useTypewriter } from '../hooks/useTypewriter';
 import { Target, Zap, Trophy, Code2, Sparkles, Award, Layers } from 'lucide-react';
 
 const features = [
