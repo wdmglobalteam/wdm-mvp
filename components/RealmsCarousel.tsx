@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { Clock, Users, Trophy, ChevronLeft, ChevronRight } from 'lucide-react';
 
 /* -------------------------
-   Data (unchanged visuals)
+   Data
    ------------------------- */
 const realms = [
 	{
@@ -20,7 +20,6 @@ const realms = [
 		progress: 65,
 		image:
 			'https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-		gradient: 'from-emerald-500/20 to-teal-500/20',
 		accent: '#00ff9f',
 	},
 	{
@@ -33,7 +32,6 @@ const realms = [
 		progress: 30,
 		image:
 			'https://images.unsplash.com/photo-1555949963-aa79dcee981c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-		gradient: 'from-blue-500/20 to-indigo-500/20',
 		accent: '#39e6ff',
 	},
 	{
@@ -46,7 +44,6 @@ const realms = [
 		progress: 85,
 		image:
 			'https://images.unsplash.com/photo-1551650975-87deedd944c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-		gradient: 'from-purple-500/20 to-pink-500/20',
 		accent: '#ff6b9d',
 	},
 	{
@@ -59,7 +56,6 @@ const realms = [
 		progress: 45,
 		image:
 			'https://images.unsplash.com/photo-1451187580459-43490279c0fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-		gradient: 'from-orange-500/20 to-red-500/20',
 		accent: '#ff8c42',
 	},
 	{
@@ -72,105 +68,47 @@ const realms = [
 		progress: 90,
 		image:
 			'https://images.unsplash.com/photo-1558655146-9f40138edfeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-		gradient: 'from-violet-500/20 to-purple-500/20',
 		accent: '#a855f7',
 	},
 ];
 
 /* -------------------------
-   Small helper: Circular progress
-   (unchanged visual)
+   Helpers
    ------------------------- */
-function CircularProgress({
-	progress,
-	size = 60,
-	strokeWidth = 4,
-	color = '#00ff9f',
-}: {
-	progress: number;
-	size?: number;
-	strokeWidth?: number;
-	color?: string;
-}) {
-	const radius = (size - strokeWidth) / 2;
-	const circumference = radius * 2 * Math.PI;
-	const strokeDasharray = `${circumference} ${circumference}`;
-	const strokeDashoffset = circumference - (progress / 100) * circumference;
-
-	return (
-		<div className="relative" style={{ width: size, height: size }}>
-			<svg className="transform -rotate-90" width={size} height={size}>
-				<circle
-					cx={size / 2}
-					cy={size / 2}
-					r={radius}
-					stroke="rgba(255,255,255,0.08)"
-					strokeWidth={strokeWidth}
-					fill="transparent"
-				/>
-				<motion.circle
-					cx={size / 2}
-					cy={size / 2}
-					r={radius}
-					stroke={color}
-					strokeWidth={strokeWidth}
-					fill="transparent"
-					strokeDasharray={strokeDasharray}
-					initial={{ strokeDashoffset: circumference }}
-					animate={{ strokeDashoffset }}
-					transition={{ duration: 1.2, ease: 'easeInOut' }}
-					strokeLinecap="round"
-				/>
-			</svg>
-			<div className="absolute inset-0 flex items-center justify-center text-white text-sm">
-				{progress}%
-			</div>
-		</div>
-	);
+function mod(n: number, m: number) {
+	return ((n % m) + m) % m;
 }
 
 /* -------------------------
    RealmCard
-   - Uses local hover for subtle per-card visuals.
-   - Exposes keyboard focus and accepts global hover marker.
    ------------------------- */
 function RealmCard({
 	realm,
-	isActive,
 	isGloballyHovered,
 	onHover,
 	onLeave,
 	cardWidth,
 }: {
 	realm: (typeof realms)[0];
-	index: number;
-	isActive: boolean;
 	isGloballyHovered: boolean;
 	onHover: () => void;
 	onLeave: () => void;
 	cardWidth: number;
 }) {
 	const [isHovered, setIsHovered] = useState(false);
-
-	// reduced particle count & recycled via CSS keyframes for performance
-	const floatingParticles = useMemo(() => new Array(4).fill(0), []);
-
-	// CSS classes when another card is hovered: dim non-focused cards slightly
 	const dimmed = isGloballyHovered && !isHovered;
 
 	return (
 		<motion.div
-			role="option"
-			aria-selected={isActive}
-			tabIndex={0}
 			className="flex-shrink-0"
 			style={{ width: cardWidth }}
-			initial={{ opacity: 0, y: 16 }}
 			animate={{
-				opacity: isActive ? 1 : dimmed ? 0.65 : 0.9,
-				scale: isActive ? 1.03 : 1,
-				transition: { type: 'spring', stiffness: 300, damping: 28 },
+				opacity: dimmed ? 0.5 : 1,
+				filter: dimmed ? 'blur(2px) brightness(0.8)' : 'none',
+				scale: isHovered ? 1.05 : 1,
+				zIndex: isHovered ? 10 : 1,
 			}}
+			transition={{ duration: 0.35 }}
 			onHoverStart={() => {
 				setIsHovered(true);
 				onHover();
@@ -179,40 +117,12 @@ function RealmCard({
 				setIsHovered(false);
 				onLeave();
 			}}
-			onFocus={() => {
+			onClick={() => {
 				setIsHovered(true);
 				onHover();
 			}}
-			onBlur={() => {
-				setIsHovered(false);
-				onLeave();
-			}}
 		>
-			<Card className="h-full bg-gradient-to-br from-gray-900/80 to-gray-800/40 border-gray-700 overflow-hidden group cursor-pointer relative rounded-xl">
-				{/* Controlled, subtle gradient animation (slow) */}
-				<motion.div
-					className={`absolute inset-0 opacity-0 group-hover:opacity-80 pointer-events-none rounded-xl`}
-					style={{
-						background: `linear-gradient(135deg, ${realm.accent}10 0%, transparent 40%), linear-gradient(225deg, ${realm.accent}05 0%, transparent 60%)`,
-						mixBlendMode: 'overlay',
-						transition: 'opacity 400ms ease',
-					}}
-					animate={isHovered ? { opacity: 0.8 } : { opacity: 0 }}
-				/>
-
-				{/* soft glowing outline (only on hover) */}
-				<motion.div
-					className="absolute inset-0 rounded-xl pointer-events-none"
-					animate={
-						isHovered
-							? {
-									boxShadow: [`0 4px 20px ${realm.accent}20`, `0 10px 40px ${realm.accent}30`],
-							  }
-							: {}
-					}
-					transition={{ duration: 0.6 }}
-				/>
-
+			<Card className="h-full bg-gradient-to-br from-gray-900/80 to-gray-800/40 border-gray-700 overflow-hidden relative rounded-xl">
 				<CardContent className="p-0 relative z-10">
 					<div className="relative h-48 overflow-hidden rounded-t-xl">
 						<motion.img
@@ -220,66 +130,23 @@ function RealmCard({
 							alt={realm.title}
 							className="w-full h-full object-cover"
 							animate={isHovered ? { scale: 1.04 } : { scale: 1 }}
-							transition={{ duration: 0.45 }}
+							transition={{ duration: 0.4 }}
 						/>
-
-						{/* Overlay — subtle */}
-						<motion.div
-							className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent"
-							animate={isHovered ? { opacity: 0.5 } : { opacity: 0.75 }}
-							transition={{ duration: 0.35 }}
-						/>
-
 						<div className="absolute top-4 left-4">
 							<Badge variant="secondary" className="bg-black/60 text-white border-0 backdrop-blur-sm">
 								{realm.difficulty}
 							</Badge>
 						</div>
-
-						<div className="absolute top-4 right-4">
-							<CircularProgress progress={realm.progress} size={48} color={realm.accent} />
-						</div>
-
-						{/* lightweight floating particles (CSS-keyframed positions for reuse) */}
-						<div aria-hidden className="absolute inset-0 pointer-events-none">
-							{floatingParticles.map((_, i) => (
-								<motion.span
-									key={i}
-									className="absolute rounded-full"
-									style={{
-										width: 6,
-										height: 6,
-										backgroundColor: realm.accent,
-										opacity: isHovered ? 0.9 : 0.25,
-										left: `${10 + i * 18}%`,
-										top: `${20 + (i % 2) * 12}%`,
-										filter: 'blur(4px)',
-									}}
-									animate={
-										isHovered
-											? {
-													y: [0, -10, 0],
-													opacity: [0.2, 0.9, 0.2],
-											  }
-											: { y: 0, opacity: 0.25 }
-									}
-									transition={{ duration: 2 + i * 0.2, repeat: Infinity, ease: 'easeInOut' }}
-								/>
-							))}
-						</div>
 					</div>
-
 					<div className="p-6">
 						<motion.h3
 							className="text-xl text-white mb-3"
 							animate={isHovered ? { color: realm.accent } : { color: '#ffffff' }}
-							transition={{ duration: 0.5 }}
+							transition={{ duration: 0.4 }}
 						>
 							{realm.title}
 						</motion.h3>
-
 						<p className="text-gray-300 text-sm mb-4 leading-relaxed">{realm.description}</p>
-
 						<div className="flex items-center justify-between text-xs text-gray-400 mb-4">
 							<div className="flex items-center gap-1">
 								<Clock className="w-3 h-3" />
@@ -294,25 +161,9 @@ function RealmCard({
 								<span>Certificate</span>
 							</div>
 						</div>
-
-						<motion.button
-							className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-gray-700 to-gray-600 text-white text-sm transition-all duration-200 relative overflow-hidden group"
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}
-							animate={
-								isHovered
-									? { background: `linear-gradient(90deg, ${realm.accent}30, ${realm.accent}50)` }
-									: {}
-							}
-						>
-							<motion.div
-								className="absolute inset-0 bg-white/8"
-								initial={{ x: '-100%' }}
-								animate={isHovered ? { x: '100%' } : { x: '-100%' }}
-								transition={{ duration: 0.45 }}
-							/>
-							<span className="relative z-10">{isHovered ? 'Click to Explore' : 'View Details'}</span>
-						</motion.button>
+						<button className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-gray-700 to-gray-600 text-white text-sm transition-all duration-200">
+							View Details
+						</button>
 					</div>
 				</CardContent>
 			</Card>
@@ -321,169 +172,63 @@ function RealmCard({
 }
 
 /* -------------------------
-   RealmsCarousel (refactored)
+   RealmsCarousel
    ------------------------- */
 export function RealmsCarousel() {
-	const [currentIndex, setCurrentIndex] = useState(0);
+	const [currentPage, setCurrentPage] = useState(0);
+	const [cardsPerPage, setCardsPerPage] = useState(3);
 	const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-	const [isAutoScrolling, setIsAutoScrolling] = useState(true);
-	const [isManuallyInteracting, setIsManuallyInteracting] = useState(false);
+	const [isAnimating, setIsAnimating] = useState(false);
 
 	const containerRef = useRef<HTMLDivElement | null>(null);
-	const innerRef = useRef<HTMLDivElement | null>(null);
 
-	const manualInteractionTimeoutRef = useRef<number | null>(null);
-
-	// Responsive card width: use container width to compute card size
-	const [cardWidth, setCardWidth] = useState(320); // fallback
+	// Duplicate realms to create an infinite effect
+	const duplicatedRealms = useMemo(() => {
+		const copies = 3; // enough for smooth looping
+		const arr: typeof realms = [];
+		for (let i = 0; i < copies; i++) arr.push(...realms);
+		return arr;
+	}, []);
 
 	useEffect(() => {
 		function measure() {
 			const containerWidth = containerRef.current?.offsetWidth ?? 0;
-			// choose card width: on desktop show ~3 cards with gaps; on mobile full width
-			if (containerWidth <= 480) {
-				setCardWidth(containerWidth - 32); // padded
-			} else if (containerWidth <= 900) {
-				setCardWidth(Math.min(360, Math.floor(containerWidth * 0.8)));
-			} else {
-				// desktop: aim for ~3 cards visible
-				const target = Math.floor((containerWidth - 96) / 3);
-				setCardWidth(Math.max(300, Math.min(420, target)));
-			}
+			if (containerWidth <= 480) setCardsPerPage(1);
+			else if (containerWidth <= 900) setCardsPerPage(2);
+			else setCardsPerPage(3);
 		}
-
 		measure();
 		window.addEventListener('resize', measure);
 		return () => window.removeEventListener('resize', measure);
 	}, []);
 
-	const totalWidth = useMemo(() => realms.length * (cardWidth + 24), [cardWidth]);
+	const totalPages = Math.ceil(duplicatedRealms.length / cardsPerPage);
 
-	// Auto-scroll with sane defaults (6s)
-	useEffect(() => {
-		if (!isAutoScrolling || isManuallyInteracting) return;
-		const id = window.setInterval(() => {
-			setCurrentIndex((prev) => (prev + 1) % realms.length);
-		}, 6000);
-		return () => clearInterval(id);
-	}, [isAutoScrolling, isManuallyInteracting]);
+	const navigateToPage = useCallback(
+		(page: number) => {
+			if (isAnimating) return;
+			setIsAnimating(true);
+			setCurrentPage(mod(page, totalPages));
+			setTimeout(() => setIsAnimating(false), 700);
+		},
+		[isAnimating, totalPages]
+	);
 
-	// Pause auto-scroll on manual interaction and resume after idle
-	const pauseAutoScroll = useCallback(() => {
-		setIsAutoScrolling(false);
-		setIsManuallyInteracting(true);
-		if (manualInteractionTimeoutRef.current) {
-			window.clearTimeout(manualInteractionTimeoutRef.current);
-		}
-		manualInteractionTimeoutRef.current = window.setTimeout(() => {
-			setIsManuallyInteracting(false);
-			setIsAutoScrolling(true);
-		}, 4000);
-	}, []);
-
-	// Compute target translate X for currentIndex (center the active card)
-	const getTargetX = (index: number) => {
-		// center active card in container
+	const getTargetX = (page: number) => {
 		const containerWidth = containerRef.current?.offsetWidth ?? 0;
-		const itemWidth = cardWidth + 24; // including gap
-		const centerOffset = (containerWidth - itemWidth) / 2;
-		const x = -index * itemWidth + centerOffset;
-		// clamp so we don't overscroll beyond content
-		const maxLeft = 0;
-		const maxRight = Math.min(0, containerWidth - totalWidth);
-		return Math.max(Math.min(x, maxLeft), maxRight);
+		return -page * containerWidth;
 	};
 
-	// Wheel handler: only respond to horizontal intent or Shift+Wheel
-	useEffect(() => {
-		const el = containerRef.current;
-		if (!el) return;
-
-		const onWheel = (e: WheelEvent) => {
-			const absX = Math.abs(e.deltaX);
-			const absY = Math.abs(e.deltaY);
-			const horizontalIntent = absX > absY || e.shiftKey;
-
-			if (!horizontalIntent) return; // let page scroll normally
-
-			// prevent vertical scroll when we handle horizontal carousel
-			e.preventDefault();
-			pauseAutoScroll();
-
-			if (e.deltaY > 0 || e.deltaX > 0) {
-				setCurrentIndex((prev) => Math.min(realms.length - 1, prev + 1));
-			} else {
-				setCurrentIndex((prev) => Math.max(0, prev - 1));
-			}
-		};
-
-		el.addEventListener('wheel', onWheel, { passive: false });
-		return () => el.removeEventListener('wheel', onWheel);
-	}, [pauseAutoScroll, totalWidth, cardWidth]);
-
-	// Keyboard navigation (left / right)
-	useEffect(() => {
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'ArrowLeft') {
-				pauseAutoScroll();
-				setCurrentIndex((prev) => Math.max(0, prev - 1));
-			} else if (e.key === 'ArrowRight') {
-				pauseAutoScroll();
-				setCurrentIndex((prev) => Math.min(realms.length - 1, prev + 1));
-			}
-		};
-		window.addEventListener('keydown', onKey);
-		return () => window.removeEventListener('keydown', onKey);
-	}, [pauseAutoScroll]);
-
-	// Drag end snapping (momentum-aware)
 	const handleDragEnd = useCallback(
 		(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-			pauseAutoScroll();
-
-			// convert velocity (px/s) and offset to decide direction
-			const velocity = info.velocity.x;
-			const offset = info.offset.x;
-
-			const itemSize = cardWidth + 24;
-			// if a fast fling, use velocity; else use offset proportion
-			if (Math.abs(velocity) > 400) {
-				if (velocity > 0) {
-					setCurrentIndex((prev) => Math.max(0, prev - 1));
-				} else {
-					setCurrentIndex((prev) => Math.min(realms.length - 1, prev + 1));
-				}
-				return;
-			}
-
-			if (Math.abs(offset) > itemSize * 0.3) {
-				// big drag -> change index accordingly
-				if (offset > 0) {
-					setCurrentIndex((prev) => Math.max(0, prev - 1));
-				} else {
-					setCurrentIndex((prev) => Math.min(realms.length - 1, prev + 1));
-				}
-			} else {
-				// small drag -> snap back to current
-				setCurrentIndex((prev) => prev);
-			}
+			if (info.offset.x < -50) navigateToPage(currentPage + 1);
+			else if (info.offset.x > 50) navigateToPage(currentPage - 1);
 		},
-		[cardWidth, pauseAutoScroll]
+		[navigateToPage, currentPage]
 	);
-
-	// navigation helper
-	const navigateToCard = useCallback(
-		(index: number) => {
-			pauseAutoScroll();
-			setCurrentIndex(() => Math.max(0, Math.min(index, realms.length - 1)));
-		},
-		[pauseAutoScroll]
-	);
-
-	// Accessibility: announce active via aria (left to browser)
 
 	return (
-		<section className="py-20 relative overflow-hidden">
+		<section className="py-20 relative overflow">
 			<div className="container mx-auto px-4">
 				<motion.div
 					className="text-center mb-12"
@@ -498,171 +243,45 @@ export function RealmsCarousel() {
 					</p>
 				</motion.div>
 
-				{/* DESKTOP - center 3 cards view */}
-				<div
-					className="hidden md:block relative overflow-visible"
-					ref={containerRef}
-					aria-roledescription="carousel"
-				>
+				<div className="relative overflow-hidden p-3 pr-0" ref={containerRef}>
 					<motion.div
-						ref={innerRef}
-						className="flex items-center gap-6 cursor-grab"
+						className="flex gap-6"
 						drag="x"
-						dragConstraints={{
-							left: Math.min(0, (containerRef.current?.offsetWidth ?? 0) - totalWidth),
-							right: 0,
-						}}
-						dragElastic={0.12}
-						onDragStart={() => {
-							pauseAutoScroll();
-						}}
+						dragConstraints={{ left: 0, right: 0 }}
+						dragElastic={0.1}
 						onDragEnd={handleDragEnd}
-						animate={{
-							x: getTargetX(currentIndex),
-						}}
-						transition={{ type: 'spring', stiffness: 260, damping: 40 }}
-						style={{ willChange: 'transform' }}
-						role="list"
+						animate={{ x: getTargetX(currentPage) }}
+						transition={{ type: 'tween', duration: 0.7, ease: 'easeInOut' }}
 					>
-						{/* show surrounding 3 cards visually but render all for accessibility */}
-						{realms.map((realm, index) => (
-							<div key={realm.id} role="listitem" aria-hidden={index !== currentIndex}>
-								<RealmCard
-									realm={realm}
-									index={index}
-									isActive={index === currentIndex}
-									isGloballyHovered={hoveredCard !== null ? hoveredCard === realm.id : false}
-									onHover={() => setHoveredCard(realm.id)}
-									onLeave={() => setHoveredCard((prev) => (prev === realm.id ? null : prev))}
-									cardWidth={cardWidth}
-								/>
-							</div>
+						{duplicatedRealms.map((realm, i) => (
+							<RealmCard
+								key={`${realm.id}-${i}`}
+								realm={realm}
+								isGloballyHovered={hoveredCard !== null && hoveredCard === realm.id}
+								onHover={() => setHoveredCard(realm.id)}
+								onLeave={() => setHoveredCard((prev) => (prev === realm.id ? null : prev))}
+								cardWidth={Math.floor((containerRef.current?.offsetWidth ?? 900) / cardsPerPage) - 24}
+							/>
 						))}
 					</motion.div>
 
-					{/* Dots */}
-					<div className="flex justify-center gap-2 mt-6">
-						{realms.map((_, index) => (
-							<button
-								key={index}
-								aria-label={`Go to ${index + 1}`}
-								onClick={() => navigateToCard(index)}
-								className="w-2 h-2 rounded-full transition-all duration-300 focus:outline-none"
-								style={{
-									background: index === currentIndex ? '#00ff9f' : '#374151',
-									transform: index === currentIndex ? 'scale(1.2)' : 'scale(1)',
-								}}
-							/>
-						))}
-					</div>
-				</div>
-
-				{/* MOBILE - full width swipe */}
-				<div className="md:hidden relative" ref={containerRef}>
-					<div className="overflow-hidden">
-						<motion.div
-							className="flex gap-4 px-4 py-2"
-							style={{ width: `${realms.length * (cardWidth + 24)}px` }}
-							animate={{
-								x: getTargetX(currentIndex),
-							}}
-							transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-							drag="x"
-							dragConstraints={{
-								left: Math.min(0, (containerRef.current?.offsetWidth ?? 0) - totalWidth),
-								right: 0,
-							}}
-							dragElastic={0.12}
-							onDragStart={() => pauseAutoScroll()}
-							onDragEnd={handleDragEnd}
-						>
-							{realms.map((realm, index) => (
-								<RealmCard
-									key={realm.id}
-									realm={realm}
-									index={index}
-									isActive={index === currentIndex}
-									isGloballyHovered={hoveredCard !== null ? hoveredCard === realm.id : false}
-									onHover={() => setHoveredCard(realm.id)}
-									onLeave={() => setHoveredCard((prev) => (prev === realm.id ? null : prev))}
-									cardWidth={cardWidth}
-								/>
-							))}
-						</motion.div>
-					</div>
-
-					{/* Mobile dots & arrows */}
-					<div className="flex justify-center gap-2 mt-4">
-						{realms.map((_, index) => (
-							<button
-								key={index}
-								aria-label={`Go to ${index + 1}`}
-								onClick={() => navigateToCard(index)}
-								className="w-2 h-2 rounded-full transition-all duration-300 focus:outline-none"
-								style={{
-									background: index === currentIndex ? '#00ff9f' : '#374151',
-									transform: index === currentIndex ? 'scale(1.2)' : 'scale(1)',
-								}}
-							/>
-						))}
-					</div>
-
+					{/* Arrows */}
 					<button
-						onClick={() => navigateToCard(Math.max(0, currentIndex - 1))}
-						className="absolute left-2 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors backdrop-blur-sm"
+						onClick={() => navigateToPage(currentPage - 1)}
+						className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
 						aria-label="Previous"
 					>
 						<ChevronLeft className="w-5 h-5" />
 					</button>
-
 					<button
-						onClick={() => navigateToCard(Math.min(realms.length - 1, currentIndex + 1))}
-						className="absolute right-2 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors backdrop-blur-sm"
+						onClick={() => navigateToPage(currentPage + 1)}
+						className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
 						aria-label="Next"
 					>
 						<ChevronRight className="w-5 h-5" />
 					</button>
 				</div>
-
-				{/* Auto-scroll indicator */}
-				<div className="flex justify-center items-center gap-2 mt-8 text-gray-400 text-sm">
-					<div
-						className="w-2 h-2 rounded-full"
-						style={{
-							background: isManuallyInteracting ? '#39e6ff' : isAutoScrolling ? undefined : '#fbbf24',
-							animation: isAutoScrolling && !isManuallyInteracting ? 'pulse 1.6s infinite' : undefined,
-						}}
-					/>
-					<span>
-						{isManuallyInteracting
-							? 'Manual control active'
-							: isAutoScrolling
-							? 'Auto-browsing enabled'
-							: 'Paused'}
-					</span>
-					<span className="text-gray-600">•</span>
-					<span className="text-xs">
-						{isManuallyInteracting ? 'Drag or use arrows' : 'Swipe, drag, or use arrows'}
-					</span>
-				</div>
 			</div>
-
-			<style jsx>{`
-				@keyframes pulse {
-					0% {
-						opacity: 0.5;
-						transform: scale(1);
-					}
-					50% {
-						opacity: 1;
-						transform: scale(1.3);
-					}
-					100% {
-						opacity: 0.5;
-						transform: scale(1);
-					}
-				}
-			`}</style>
 		</section>
 	);
 }

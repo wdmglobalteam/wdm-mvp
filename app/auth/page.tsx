@@ -364,7 +364,7 @@ export default function AuthPage() {
 					<Button
 						type="submit"
 						disabled={loading || (mode === 'signup' && !allValid)}
-						className="w-full bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+						className="cursor-pointer w-full bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						{loading ? 'Loading...' : mode === 'signup' ? 'Sign Up' : 'Sign In'}
 					</Button>
@@ -376,7 +376,7 @@ export default function AuthPage() {
 					</Link>
 					<button
 						onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}
-						className="hover:text-[#39e6ff]"
+						className="cursor-pointer hover:text-[#39e6ff]"
 					>
 						{mode === 'signup' ? 'Sign in' : 'Create account'}
 					</button>

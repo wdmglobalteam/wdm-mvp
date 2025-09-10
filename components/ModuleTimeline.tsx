@@ -1,272 +1,498 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircle, Circle, Lock, Play } from 'lucide-react';
+import * as React from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { CheckCircle, Lock, Play, ChevronLeft, ChevronRight, Star, Clock } from 'lucide-react';
 
-const modules = [
+/* ----------------------------- Types & Data ----------------------------- */
+
+type Status = 'completed' | 'active' | 'current' | 'locked';
+
+type ModuleItem = {
+	id: number;
+	title: string;
+	lessons: number;
+	mastery: number; // 0-100
+	status: Status;
+	preview: string;
+};
+
+const BASE_MODULES: ModuleItem[] = [
 	{
 		id: 1,
-		title: 'HTML Basics',
-		lessons: 12,
-		mastery: 100,
+		title: 'HTML Foundations',
 		status: 'completed',
-		preview: 'Semantic elements, forms, accessibility',
+		mastery: 95,
+		lessons: 12,
+		preview: 'Semantic markup and accessibility principles',
 	},
 	{
 		id: 2,
-		title: 'CSS Styling',
+		title: 'CSS Mastery',
+		status: 'completed',
+		mastery: 88,
 		lessons: 18,
-		mastery: 85,
-		status: 'active',
-		preview: 'Flexbox, Grid, responsive design',
+		preview: 'Advanced layouts with Grid and Flexbox',
 	},
 	{
 		id: 3,
-		title: 'CSS Animations',
-		lessons: 8,
-		mastery: 45,
+		title: 'JavaScript Core',
 		status: 'active',
-		preview: 'Keyframes, transitions, transforms',
+		mastery: 67,
+		lessons: 24,
+		preview: 'ES6+ features and async programming',
 	},
 	{
 		id: 4,
-		title: 'JavaScript Intro',
-		lessons: 15,
-		mastery: 0,
-		status: 'locked',
-		preview: 'Variables, functions, DOM manipulation',
+		title: 'React Fundamentals',
+		status: 'current',
+		mastery: 45,
+		lessons: 20,
+		preview: 'Components, hooks, and state management',
 	},
 	{
 		id: 5,
-		title: 'JS Events',
-		lessons: 10,
-		mastery: 0,
+		title: 'Advanced React',
 		status: 'locked',
-		preview: 'Event handling, user interactions',
+		mastery: 0,
+		lessons: 16,
+		preview: 'Performance optimization and patterns',
 	},
 	{
 		id: 6,
-		title: 'Advanced JS',
-		lessons: 20,
-		mastery: 0,
+		title: 'Next.js Deep Dive',
 		status: 'locked',
-		preview: 'Async/await, promises, APIs',
+		mastery: 0,
+		lessons: 22,
+		preview: 'SSR, API routes, and deployment',
+	},
+	{
+		id: 7,
+		title: 'Backend Integration',
+		status: 'locked',
+		mastery: 0,
+		lessons: 28,
+		preview: 'APIs, databases, and auth',
+	},
+	{
+		id: 8,
+		title: 'DevOps Essentials',
+		status: 'locked',
+		mastery: 0,
+		lessons: 15,
+		preview: 'CI/CD pipelines and cloud deployment',
 	},
 ];
 
-export function ModuleTimeline() {
-	const [hoveredModule, setHoveredModule] = useState<number | null>(null);
+/* ----------------------------- Constants ----------------------------- */
 
-	const getStatusIcon = (status: string, mastery: number) => {
-		if (status === 'completed') return CheckCircle;
-		if (status === 'active') return mastery > 0 ? Play : Circle;
-		return Lock;
-	};
+const ITEM_WIDTH = 220;
+const AUTO_SPEED_PX_PER_MS = 0.04; // ~40px/sec
+const WHEEL_SENSITIVITY = 1.0;
+const MANUAL_RESUME_MS = 1200;
+const ARROW_SCROLL_PIXELS = ITEM_WIDTH * 1.5;
+const EASE_SCROLL_DURATION = 450;
 
-	const getStatusColor = (status: string) => {
-		if (status === 'completed') return '#00ff9f';
-		if (status === 'active') return '#39e6ff';
-		return '#666';
-	};
+/* ----------------------------- Helpers ----------------------------- */
 
+const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const mod = (n: number, m: number) => ((n % m) + m) % m;
+
+function getStatusIcon(status: Status) {
+	switch (status) {
+		case 'completed':
+			return CheckCircle;
+		case 'current':
+			return Play;
+		case 'active':
+			return Clock;
+		default:
+			return Lock;
+	}
+}
+function getStatusColor(status: Status) {
+	switch (status) {
+		case 'completed':
+			return '#00ff9f';
+		case 'current':
+			return '#39e6ff';
+		case 'active':
+			return '#fbbf24';
+		default:
+			return '#6b7280';
+	}
+}
+
+/* ----------------------------- Component ----------------------------- */
+
+function getVisibleDuplicates() {
+	if (typeof window === 'undefined') return 6;
+	const screenWidth = window.innerWidth;
+	return Math.ceil((screenWidth * 2) / (BASE_MODULES.length * ITEM_WIDTH));
+}
+
+export function ModuleTimeline(): React.JSX.Element {
+	const shouldReduceMotion = useReducedMotion();
+
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+	const scrollRef = useRef<number>(0);
+	const lastFrameTime = useRef<number | null>(null);
+	const rafRef = useRef<number | null>(null);
+	const manualTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const [isManuallyScrolling, setIsManuallyScrolling] = useState(false);
+	const [isPaused, setIsPaused] = useState(false);
+	const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
+	// start with 1 to avoid SSR mismatch
+	const [dupCount, setDupCount] = useState(1);
+
+	useEffect(() => {
+		setDupCount(getVisibleDuplicates()); // update after mount
+		const handleResize = () => setDupCount(getVisibleDuplicates());
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, []);
+
+	const modules = useMemo(() => {
+		const arr: ModuleItem[] = [];
+		for (let i = 0; i < dupCount; i++) {
+			for (const m of BASE_MODULES) arr.push({ ...m });
+		}
+		return arr;
+	}, [dupCount]);
+
+	const baseCount = BASE_MODULES.length;
+	const totalWidth = useMemo(() => ITEM_WIDTH * modules.length, [modules.length]);
+
+	const applyTransform = useCallback(() => {
+		const el = scrollerRef.current;
+		if (!el) return;
+		el.style.transform = `translate3d(${-scrollRef.current}px, 0, 0)`;
+	}, []);
+
+	/* rAF auto-scroll */
+	useEffect(() => {
+		if (shouldReduceMotion) return;
+		let mounted = true;
+
+		function tick(ts: number) {
+			if (!mounted) return;
+			if (lastFrameTime.current == null) lastFrameTime.current = ts;
+			const dt = ts - lastFrameTime.current;
+			lastFrameTime.current = ts;
+
+			if (!isPaused && !isManuallyScrolling) {
+				const inc = AUTO_SPEED_PX_PER_MS * dt;
+				scrollRef.current = mod(scrollRef.current + inc, totalWidth);
+				applyTransform();
+			}
+			rafRef.current = requestAnimationFrame(tick);
+		}
+
+		rafRef.current = requestAnimationFrame(tick);
+		return () => {
+			mounted = false;
+			lastFrameTime.current = null;
+			if (rafRef.current) cancelAnimationFrame(rafRef.current);
+			rafRef.current = null;
+		};
+	}, [isPaused, isManuallyScrolling, totalWidth, applyTransform, shouldReduceMotion]);
+
+	/* Wheel handling */
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const onWheel = (e: WheelEvent) => {
+			const horiz = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+			const wantIntercept = horiz || e.shiftKey;
+			if (!wantIntercept) return;
+
+			e.preventDefault();
+			setIsManuallyScrolling(true);
+			setIsPaused(true);
+			if (manualTimeoutRef.current) clearTimeout(manualTimeoutRef.current);
+
+			const delta = (e.deltaX || e.deltaY) * WHEEL_SENSITIVITY;
+			scrollRef.current = mod(scrollRef.current + delta, totalWidth);
+			applyTransform();
+
+			manualTimeoutRef.current = setTimeout(() => {
+				setIsManuallyScrolling(false);
+				setIsPaused(false);
+			}, MANUAL_RESUME_MS);
+		};
+
+		container.addEventListener('wheel', onWheel, { passive: false });
+		return () => {
+			container.removeEventListener('wheel', onWheel);
+			if (manualTimeoutRef.current) {
+				clearTimeout(manualTimeoutRef.current);
+				manualTimeoutRef.current = null;
+			}
+		};
+	}, [applyTransform, totalWidth]);
+
+	/* Pointer drag */
+	useEffect(() => {
+		const el = scrollerRef.current;
+		if (!el) return;
+
+		let pointerDown = false;
+		let dragging = false;
+		let startX = 0;
+		let startScroll = 0;
+		const DRAG_THRESHOLD = 6;
+
+		const onPointerDown = (ev: PointerEvent) => {
+			pointerDown = true;
+			dragging = false;
+			startX = ev.clientX;
+			startScroll = scrollRef.current;
+		};
+
+		const onPointerMove = (ev: PointerEvent) => {
+			if (!pointerDown) return;
+			const dx = ev.clientX - startX;
+			if (!dragging && Math.abs(dx) > DRAG_THRESHOLD) {
+				dragging = true;
+				setIsManuallyScrolling(true);
+				setIsPaused(true);
+				try {
+					(ev.target as Element).setPointerCapture?.((ev as unknown as PointerEvent).pointerId);
+				} catch {}
+			}
+			if (dragging) {
+				scrollRef.current = mod(startScroll - dx, totalWidth);
+				applyTransform();
+				if (manualTimeoutRef.current) {
+					clearTimeout(manualTimeoutRef.current);
+					manualTimeoutRef.current = null;
+				}
+			}
+		};
+
+		const onPointerUp = (ev: PointerEvent) => {
+			if (!pointerDown) return;
+			if (dragging) {
+				manualTimeoutRef.current = setTimeout(() => {
+					setIsManuallyScrolling(false);
+					setIsPaused(false);
+				}, MANUAL_RESUME_MS);
+			}
+			try {
+				(ev.target as Element).releasePointerCapture?.((ev as unknown as PointerEvent).pointerId);
+			} catch {}
+			dragging = false;
+			pointerDown = false;
+		};
+
+		el.style.touchAction = 'pan-y';
+		el.addEventListener('pointerdown', onPointerDown);
+		window.addEventListener('pointermove', onPointerMove);
+		window.addEventListener('pointerup', onPointerUp);
+		window.addEventListener('pointercancel', onPointerUp);
+
+		return () => {
+			el.removeEventListener('pointerdown', onPointerDown);
+			window.removeEventListener('pointermove', onPointerMove);
+			window.removeEventListener('pointerup', onPointerUp);
+			window.removeEventListener('pointercancel', onPointerUp);
+			if (manualTimeoutRef.current) {
+				clearTimeout(manualTimeoutRef.current);
+				manualTimeoutRef.current = null;
+			}
+		};
+	}, [applyTransform, totalWidth]);
+
+	/* Smooth arrow-driven scroll */
+	const animateScrollTo = useCallback(
+		(target: number, duration = EASE_SCROLL_DURATION) => {
+			if (rafRef.current) cancelAnimationFrame(rafRef.current);
+			const start = performance.now();
+			const from = scrollRef.current;
+			const travel = target - from;
+
+			function step(now: number) {
+				const t = clamp((now - start) / duration, 0, 1);
+				const ease = 1 - Math.pow(1 - t, 3);
+				scrollRef.current = mod(from + travel * ease, totalWidth);
+				applyTransform();
+				if (t < 1) rafRef.current = requestAnimationFrame(step);
+				else rafRef.current = null;
+			}
+			rafRef.current = requestAnimationFrame(step);
+		},
+		[applyTransform, totalWidth]
+	);
+
+	const scrollByPixels = useCallback(
+		(deltaPixels: number) => {
+			setIsManuallyScrolling(true);
+			setIsPaused(true);
+			if (manualTimeoutRef.current) clearTimeout(manualTimeoutRef.current);
+
+			const target = mod(scrollRef.current + deltaPixels, totalWidth);
+			animateScrollTo(target, EASE_SCROLL_DURATION);
+
+			manualTimeoutRef.current = setTimeout(() => {
+				setIsManuallyScrolling(false);
+				setIsPaused(false);
+			}, MANUAL_RESUME_MS + 200);
+		},
+		[animateScrollTo, totalWidth]
+	);
+
+	/* Cleanup */
+	useEffect(() => {
+		return () => {
+			if (rafRef.current) cancelAnimationFrame(rafRef.current);
+			if (manualTimeoutRef.current) clearTimeout(manualTimeoutRef.current);
+		};
+	}, []);
+
+	/* -------------------- Render -------------------- */
 	return (
-		<section className="py-20 relative overflow-hidden">
+		<section className="py-20 relative overflow-visible">
 			<div className="container mx-auto px-4">
 				<motion.div
-					className="text-center mb-16"
-					initial={{ opacity: 0, y: 20 }}
-					whileInView={{ opacity: 1, y: 0 }}
-					viewport={{ once: true }}
+					className="text-center mb-10"
+					initial={{ opacity: 0, y: 16 }}
+					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.6 }}
 				>
-					<h2 className="text-3xl md:text-5xl text-white mb-4">Learning Journey</h2>
+					<h2 className="text-3xl md:text-5xl text-white mb-4 font-semibold">Learning Journey</h2>
 					<p className="text-gray-300 text-lg max-w-2xl mx-auto">
 						Follow the structured path from foundations to mastery
 					</p>
 				</motion.div>
 
-				{/* Timeline Container */}
-				<div className="relative timeline-mask-container">
-					{/* Horizontal scroll container */}
-					<div
-						className="overflow-x-auto pb-8 scrollbar-hide timeline-scroll-container"
-						style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+				<div
+					ref={containerRef}
+					className="relative w-full bg-transparent rounded-xl"
+					onMouseEnter={() => setIsPaused(true)}
+					onMouseLeave={() => {
+						if (!isManuallyScrolling) setIsPaused(false);
+						setActiveModuleId(null);
+					}}
+				>
+					{/* Left Arrow */}
+					<button
+						aria-label="Scroll left"
+						className="absolute left-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#39e6ff] transition"
+						onClick={() => scrollByPixels(-ARROW_SCROLL_PIXELS)}
 					>
-						<div className="flex items-center gap-4 min-w-max px-40 pt-24">
-							{modules.map((module, index) => {
-								const StatusIcon = getStatusIcon(module.status, module.mastery);
-								const isLast = index === modules.length - 1;
+						<ChevronLeft className="w-5 h-5 text-white" />
+					</button>
+
+					{/* Right Arrow */}
+					<button
+						aria-label="Scroll right"
+						className="absolute right-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 backdrop-blur-sm hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#39e6ff] transition"
+						onClick={() => scrollByPixels(ARROW_SCROLL_PIXELS)}
+					>
+						<ChevronRight className="w-5 h-5 text-white" />
+					</button>
+
+					{/* Scroller */}
+					<div className="overflow-hidden w-full">
+						<div
+							ref={scrollerRef}
+							className="flex items-start gap-6 py-12 will-change-transform"
+							style={{
+								width: `${modules.length * ITEM_WIDTH}px`,
+								transform: `translate3d(${-scrollRef.current}px,0,0)`,
+							}}
+						>
+							{modules.map((module, idx) => {
+								const baseIndex = idx % baseCount;
+								const base = BASE_MODULES[baseIndex];
+								const key = `${base.id}-${Math.floor(idx / baseCount)}`;
+								const Icon = getStatusIcon(base.status);
 
 								return (
-									<div key={module.id} className="flex items-center">
-										{/* Module Node */}
-										<motion.div
-											className="relative flex flex-col items-center"
-											onMouseEnter={() => setHoveredModule(module.id)}
-											onMouseLeave={() => setHoveredModule(null)}
-											initial={{ opacity: 0, scale: 0.8 }}
-											whileInView={{ opacity: 1, scale: 1 }}
-											viewport={{ once: true }}
-											transition={{ duration: 0.5, delay: index * 0.1 }}
-										>
-											{/* Tooltip */}
-											{hoveredModule === module.id && (
-												<motion.div
-													className="absolute -top-20 left-1/2 transform -translate-x-1/2 bg-black/95 border border-[#00ff9f]/50 rounded-lg p-3 min-w-48 z-50 shadow-2xl backdrop-blur-sm"
-													style={{
-														boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 159, 0.3)',
-													}}
-													initial={{ opacity: 0, y: 10, scale: 0.9 }}
-													animate={{ opacity: 1, y: 0, scale: 1 }}
-													exit={{ opacity: 0, y: 10, scale: 0.9 }}
-												>
-													<div className="text-white text-sm">
-														<div className="font-medium mb-1">{module.title}</div>
-														<div className="text-gray-300 text-xs mb-2">
-															{module.lessons} lessons • {module.mastery}% mastery
-														</div>
-														<div className="text-gray-400 text-xs">
-															{module.status === 'locked' ? 'Coming Soon: ' : ''}
-															{module.preview}
-														</div>
-
-														{module.status === 'locked' && (
-															<motion.div
-																className="mt-2 text-xs text-[#39e6ff] flex items-center gap-1"
-																animate={{ opacity: [0.5, 1, 0.5] }}
-																transition={{ duration: 1.5, repeat: Infinity }}
-															>
-																<div className="w-2 h-2 bg-[#39e6ff] rounded-full animate-pulse" />
-																Preview Available
-															</motion.div>
-														)}
-													</div>
-
-													{/* Arrow */}
-													<div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#00ff9f]/50" />
-												</motion.div>
-											)}
-
-											{/* Glow Effect */}
-											{(module.status === 'active' || hoveredModule === module.id) && (
-												<motion.div
-													className="absolute w-16 h-16 rounded-full"
-													style={{
-														background: `radial-gradient(circle, ${getStatusColor(
-															module.status
-														)}40 0%, transparent 70%)`,
-													}}
-													animate={{
-														scale: [1, 1.2, 1],
-														opacity: [0.5, 0.8, 0.5],
-													}}
-													transition={{
-														duration: 2,
-														repeat: Infinity,
-														ease: 'easeInOut',
-													}}
-												/>
-											)}
-
-											{/* Main Node */}
-											<motion.div
-												className={`relative w-12 h-12 rounded-full border-2 flex items-center justify-center cursor-pointer z-10 ${
-													module.status === 'locked' ? 'bg-gray-800 border-gray-600' : 'bg-gray-900 border-2'
-												}`}
+									<div
+										key={key}
+										className="flex items-center flex-shrink-0 w-[220px] justify-center"
+										style={{ width: ITEM_WIDTH }}
+									>
+										<div className="relative flex flex-col items-center">
+											<button
+												aria-label={`${base.title} module`}
+												className="relative w-16 h-16 rounded-full flex items-center justify-center z-10 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#39e6ff] focus-visible:outline-none transition-transform"
 												style={{
-													borderColor: getStatusColor(module.status),
-													backgroundColor:
-														module.status === 'completed' ? getStatusColor(module.status) + '20' : 'transparent',
+													backgroundColor: base.status === 'locked' ? '#111827' : '#0b1220',
+													border: `2px solid ${getStatusColor(base.status)}`,
+													boxShadow:
+														activeModuleId === base.id ? `0 8px 30px ${getStatusColor(base.status)}40` : 'none',
 												}}
-												whileHover={module.status !== 'locked' ? { scale: 1.1 } : { scale: 1.05 }}
-												whileTap={module.status !== 'locked' ? { scale: 0.95 } : {}}
-												animate={
-													module.status === 'locked' && hoveredModule === module.id
-														? {
-																x: [-2, 2, -2, 2, 0],
-														  }
-														: {}
-												}
-												transition={{ duration: 0.5 }}
+												onClick={() => {
+													if (isPaused) {
+														setIsPaused(false);
+														setActiveModuleId(null);
+													} else {
+														setIsPaused(true);
+														setActiveModuleId(base.id);
+													}
+												}}
 											>
-												<StatusIcon className="w-5 h-5" style={{ color: getStatusColor(module.status) }} />
+												<Icon className="w-7 h-7" style={{ color: getStatusColor(base.status) }} />
 
-												{/* Mastery Ring */}
-												{module.mastery > 0 && (
-													<svg className="absolute inset-0 w-full h-full -rotate-90">
-														<circle
-															cx="50%"
-															cy="50%"
-															r="22"
-															stroke="rgba(255,255,255,0.1)"
-															strokeWidth="2"
-															fill="transparent"
-														/>
-														<motion.circle
-															cx="50%"
-															cy="50%"
-															r="22"
-															stroke={getStatusColor(module.status)}
-															strokeWidth="2"
-															fill="transparent"
-															strokeDasharray={`${2 * Math.PI * 22}`}
-															strokeDashoffset={`${2 * Math.PI * 22 * (1 - module.mastery / 100)}`}
-															strokeLinecap="round"
-															initial={{ strokeDashoffset: `${2 * Math.PI * 22}` }}
-															animate={{ strokeDashoffset: `${2 * Math.PI * 22 * (1 - module.mastery / 100)}` }}
-															transition={{ duration: 1, delay: index * 0.2 }}
-														/>
-													</svg>
+												{base.status === 'completed' && (
+													<motion.div
+														className="absolute -top-2 -right-2 w-6 h-6 bg-[#00ff9f] rounded-full flex items-center justify-center"
+														initial={{ scale: 0, rotate: -90 }}
+														animate={{ scale: 1, rotate: 0 }}
+														transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.45 }}
+													>
+														<Star className="w-3 h-3 text-black" />
+													</motion.div>
 												)}
-											</motion.div>
 
-											{/* Module Title */}
-											<div className="mt-3 text-center">
-												<h3 className="text-white text-sm font-medium">{module.title}</h3>
-												<p className="text-gray-400 text-xs mt-1">{module.lessons} lessons</p>
+												{base.status === 'current' && !shouldReduceMotion && (
+													<motion.span
+														className="absolute inset-0 rounded-full border-2 pointer-events-none"
+														aria-hidden
+														animate={{ scale: [1, 1.4, 1], opacity: [1, 0, 1] }}
+														transition={{ duration: 2.2, repeat: Infinity }}
+														style={{ borderColor: getStatusColor(base.status) }}
+													/>
+												)}
+											</button>
+
+											<div className="mt-3 text-center w-full px-2">
+												<div className="text-white text-sm font-medium truncate">{base.title}</div>
+												<div className="text-gray-400 text-xs mt-1">{base.lessons} lessons</div>
+
+												{base.mastery > 0 && (
+													<div className="mt-2 w-12 h-1 bg-gray-700 rounded-full mx-auto overflow-hidden">
+														<motion.div
+															className="h-full rounded-full"
+															initial={{ width: 0 }}
+															animate={{ width: `${clamp(base.mastery / 100) * 100}%` }}
+															transition={{ duration: 0.9, ease: 'easeOut' }}
+															style={{ background: 'linear-gradient(90deg,#00ff9f,#39e6ff)' }}
+														/>
+													</div>
+												)}
 											</div>
-										</motion.div>
+										</div>
 
-										{/* Connection Line */}
-										{!isLast && (
-											<motion.div
-												className="flex-1 h-0.5 mx-4 relative"
-												style={{ minWidth: '80px' }}
-												initial={{ scaleX: 0 }}
-												whileInView={{ scaleX: 1 }}
-												viewport={{ once: true }}
-												transition={{ duration: 0.8, delay: index * 0.1 }}
-											>
-												{/* Base line */}
-												<div className="absolute inset-0 bg-gray-600 rounded-full" />
-
-												{/* Animated line for active connections */}
-												{modules[index + 1].status !== 'locked' && (
-													<motion.div
-														className="absolute inset-0 bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] rounded-full"
-														initial={{ scaleX: 0 }}
-														animate={{ scaleX: 1 }}
-														transition={{ duration: 1, delay: index * 0.2 + 0.5 }}
-													/>
-												)}
-
-												{/* Shimmer effect for locked connections */}
-												{modules[index + 1].status === 'locked' && (
-													<motion.div
-														className="absolute inset-0 bg-gradient-to-r from-transparent via-[#39e6ff]/30 to-transparent rounded-full"
-														animate={{
-															x: ['-100%', '200%'],
-														}}
-														transition={{
-															duration: 3,
-															repeat: Infinity,
-															repeatDelay: 2,
-															ease: 'easeInOut',
-														}}
-													/>
-												)}
-											</motion.div>
+										{/* connector line */}
+										{idx < modules.length - 1 && (
+											<div
+												aria-hidden
+												className="h-0.5 mx-4 flex-grow rounded-full"
+												style={{
+													background: `linear-gradient(90deg, ${getStatusColor(
+														base.status
+													)}30, #2d3748, ${getStatusColor(modules[(idx + 1) % modules.length].status)}30)`,
+													minWidth: 48,
+												}}
+											/>
 										)}
 									</div>
 								);

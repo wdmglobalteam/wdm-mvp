@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence, MotionValue } from 'framer-motion';
 import { Card, CardContent } from './ui/card';
+import { useTypewriter } from './hooks/useTypeWriter';
 import { Target, Zap, Trophy, Code2, Sparkles, Award, Layers } from 'lucide-react';
 
 const features = [
@@ -67,7 +68,7 @@ export function WhyWDM() {
 					</p>
 				</motion.div>
 
-				<div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+				<div className="grid md:grid-cols-2 gap-6 sm:gap-8 lg:gap-10 max-w-6xl mx-auto">
 					{features.map((feature, index) => (
 						<FeatureCard
 							key={feature.id}
@@ -145,7 +146,7 @@ function FeatureCard({
 			className="perspective-1000"
 		>
 			<Card
-				className="h-full bg-gradient-to-br from-gray-900/50 to-gray-800/30 border-gray-700 cursor-pointer overflow-hidden group relative"
+				className="h-full min-h-[420px] bg-gradient-to-br from-gray-900/50 to-gray-800/30 border-gray-700 cursor-pointer overflow-hidden group relative"
 				style={{
 					transform: isHovered
 						? `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`
@@ -161,10 +162,10 @@ function FeatureCard({
 						isHovered
 							? {
 									background: [
-										`linear-gradient(45deg, rgba(0,255,159,0.1), rgba(57,230,255,0.1))`,
-										`linear-gradient(135deg, rgba(57,230,255,0.1), rgba(0,255,159,0.1))`,
-										`linear-gradient(225deg, rgba(0,255,159,0.1), rgba(57,230,255,0.1))`,
-										`linear-gradient(315deg, rgba(57,230,255,0.1), rgba(0,255,159,0.1))`,
+										`linear-gradient(45deg, rgba(72, 61, 139, 0.2), rgba(0, 191, 255, 0.15))`, // deep indigo + cyan glow
+										`linear-gradient(135deg, rgba(123, 104, 238, 0.25), rgba(0, 255, 204, 0.1))`, // electric violet + aurora teal
+										`linear-gradient(225deg, rgba(255, 255, 255, 0.08), rgba(30, 144, 255, 0.2))`, // faint starlight silver + sapphire
+										`linear-gradient(315deg, rgba(186, 85, 211, 0.25), rgba(0, 206, 209, 0.15))`, // orchid glow + deep turquoise
 									],
 							  }
 							: {}
@@ -217,7 +218,7 @@ function FeatureCard({
 					)}
 				</AnimatePresence>
 
-				<CardContent className="p-8 h-full flex flex-col relative z-10">
+				<CardContent className="p-6 md:p-8 h-full flex flex-col relative z-10">
 					<div className="flex items-start gap-4 mb-6">
 						<motion.div
 							className="flex-shrink-0"
@@ -363,7 +364,7 @@ function DemoComponent({
 		}
 	}, [isActive, type, knowledgeNodes.length]);
 
-	// Live coding demo
+	// Live coding demo (fixed to finish properly)
 	useEffect(() => {
 		if (type === 'live-coding' && isActive) {
 			const code = `function learn() {\n  const skill = practice();\n  return skill.master();\n}`;
@@ -374,14 +375,14 @@ function DemoComponent({
 					i++;
 				} else {
 					clearInterval(timer);
-					setTimeout(() => setTypedText(''), 1000);
+					setTimeout(() => setTypedText(''), 2000); // longer delay before reset
 				}
-			}, 80);
+			}, 20);
 			return () => clearInterval(timer);
 		}
 	}, [isActive, type, knowledgeNodes.length]);
 
-	// Achievement unlock demo
+	// Achievement unlock demo (fixed guard)
 	useEffect(() => {
 		if (type === 'achievement-unlock' && isActive) {
 			const achievementList = [
@@ -424,6 +425,20 @@ function DemoComponent({
 			return () => clearInterval(timer);
 		}
 	}, [isActive, type, knowledgeNodes.length]);
+
+	const { text, cursor, start, skip } = useTypewriter({
+		baseSpeed: 36,
+		jitter: 18,
+		pauseOnComplete: 1200,
+	});
+
+	useEffect(() => {
+		if (isActive) {
+			start(`function learn() {\n  const skill = practice();\n  return skill.master();\n}`);
+		} else {
+			skip(); // instantly finish if demo deactivates
+		}
+	}, [isActive, start, skip]);
 
 	switch (type) {
 		case 'mastery-validation':
@@ -482,24 +497,21 @@ function DemoComponent({
 				</div>
 			);
 
-		case 'live-coding':
+		// live-coding demo using useTypewriter
+		case 'live-coding': {
 			return (
 				<div className="bg-gray-900/80 rounded-lg p-4 font-mono text-xs w-full max-w-64 border border-[#00ff9f]/20">
 					<motion.div
 						className="text-[#00ff9f] min-h-16 relative"
 						style={{ fontSize: '10px', lineHeight: '1.4' }}
 					>
-						<pre className="whitespace-pre-wrap">{typedText}</pre>
-						<motion.span
-							className="text-[#39e6ff]"
-							animate={{ opacity: [1, 0, 1] }}
-							transition={{ duration: 0.8, repeat: Infinity }}
-						>
-							{typedText.length > 0 ? '|' : ''}
-						</motion.span>
+						<pre className="whitespace-pre-wrap">{text}</pre>
+						<span className="typewriter-cursor text-[#39e6ff] ml-1" aria-hidden="true">
+							{cursor}
+						</span>
 					</motion.div>
 
-					{typedText.includes('master()') && (
+					{text.includes('master()') && (
 						<motion.div
 							className="absolute -top-2 right-2 flex items-center gap-1 bg-[#00ff9f] text-black px-2 py-1 rounded text-xs"
 							initial={{ y: -10, opacity: 0 }}
@@ -511,44 +523,48 @@ function DemoComponent({
 					)}
 				</div>
 			);
+		}
 
 		case 'achievement-unlock':
 			return (
 				<div className="space-y-2 w-full">
 					<AnimatePresence>
-						{achievements.map((achievement, index) => (
-							<motion.div
-								key={index}
-								className="flex items-center gap-2 bg-gradient-to-r from-[#00ff9f]/10 to-[#39e6ff]/10 border border-[#00ff9f]/30 rounded-lg px-3 py-2"
-								initial={{ x: 100, opacity: 0, scale: 0.8 }}
-								animate={{ x: 0, opacity: 1, scale: 1 }}
-								exit={{ x: -100, opacity: 0, scale: 0.8 }}
-								transition={{
-									type: 'spring',
-									stiffness: 200,
-									delay: index * 0.1,
-								}}
-							>
-								<motion.span
-									className="text-lg"
-									animate={{ rotate: [0, 15, -15, 0] }}
-									transition={{ duration: 0.5, delay: 0.2 }}
-								>
-									{achievement.split(' ')[0]}
-								</motion.span>
-								<span className="text-white text-sm">{achievement.split(' ').slice(1).join(' ')}</span>
-
-								{/* Sparkle effect */}
+						{achievements.map((achievement, index) => {
+							if (!achievement) return null; // ✅ guard fix
+							return (
 								<motion.div
-									className="absolute -top-1 -right-1 w-2 h-2 bg-[#00ff9f] rounded-full"
-									animate={{
-										scale: [0, 1, 0],
-										opacity: [0, 1, 0],
+									key={index}
+									className="flex items-center gap-2 bg-gradient-to-r from-[#00ff9f]/10 to-[#39e6ff]/10 border border-[#00ff9f]/30 rounded-lg px-3 py-2 relative"
+									initial={{ x: 100, opacity: 0, scale: 0.8 }}
+									animate={{ x: 0, opacity: 1, scale: 1 }}
+									exit={{ x: -100, opacity: 0, scale: 0.8 }}
+									transition={{
+										type: 'spring',
+										stiffness: 200,
+										delay: index * 0.1,
 									}}
-									transition={{ duration: 1, delay: 0.3 }}
-								/>
-							</motion.div>
-						))}
+								>
+									<motion.span
+										className="text-lg"
+										animate={{ rotate: [0, 15, -15, 0] }}
+										transition={{ duration: 0.5, delay: 0.2 }}
+									>
+										{achievement.split(' ')[0]}
+									</motion.span>
+									<span className="text-white text-sm">{achievement.split(' ').slice(1).join(' ')}</span>
+
+									{/* Sparkle effect */}
+									<motion.div
+										className="absolute -top-1 -right-1 w-2 h-2 bg-[#00ff9f] rounded-full"
+										animate={{
+											scale: [0, 1, 0],
+											opacity: [0, 1, 0],
+										}}
+										transition={{ duration: 1, delay: 0.3 }}
+									/>
+								</motion.div>
+							);
+						})}
 					</AnimatePresence>
 				</div>
 			);

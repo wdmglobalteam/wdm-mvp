@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -317,6 +317,31 @@
 			font-weight: var(--font-weight-normal);
 			line-height: 1.5;
 		}
+	}
+}
+
+@keyframes tw-type-cursor-blink {
+	0% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+.typewriter-cursor {
+	line-height: 1;
+	animation: tw-type-cursor-blink 1s steps(2, start) infinite;
+	will-change: opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.typewriter-cursor {
+		animation: none;
+		opacity: 1;
 	}
 }
 
