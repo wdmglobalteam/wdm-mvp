@@ -1,0 +1,979 @@
+You created the files well, but there were a few minor issues that arose and I will paste the errored files along with the error descriptions here for you to fix them completely. You must return the fully fixed files in this chat in codeblocks for me to copy. If you need to see any files whether private, public or whatever or need anything to be understood first or provided by me.. just ask for anything you need and I'll provide it to you and then you do the implementation after that. But if you already have all you need and you do not need to request anything, go ahead with the implementation right away and provide me the fully fixed files in code blocks right here in this chat to copy. Do not use canvas or code viewer or any other tool, provide all the fully fixed files right here in this chat in code blocks for me to copy. The error descriptions are in this text, and I have also attached the errored files for you to analyze as well
+
+
+HERE ARE THE ERROR DESCRIPTIONS AND TO WHICH FILE THE ERROR IS IN:
+
+1. sessionService.ts
+
+red line hover error over "set" in:
+cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: SESSION_DURATION / 1000, // Convert to seconds
+    });
+saying: Property 'set' does not exist on type 'Promise<ReadonlyRequestCookies>'.ts(2339)
+sessionService.ts(140, 17): Did you forget to use 'await'?
+any
+
+red line hover error over "get" in:
+const cookie = cookieStore.get(SESSION_COOKIE_NAME);
+saying: Property 'get' does not exist on type 'Promise<ReadonlyRequestCookies>'.ts(2339)
+sessionService.ts(154, 32): Did you forget to use 'await'?
+any
+
+red line hover error over "delete" in:
+cookieStore.delete(SESSION_COOKIE_NAME);
+saying: Property 'delete' does not exist on type 'Promise<ReadonlyRequestCookies>'.ts(2339)
+sessionService.ts(163, 17): Did you forget to use 'await'?
+any
+
+
+2. OnboardingService.ts
+
+* red line hover error on "upsert" in:
+// Update onboarding_progress table
+      const { error: progressError } = await this.supabase
+        .from("onboarding_progress")
+        .upsert(
+          {
+            user_id: userId,
+            step,
+            data,
+          },
+          {
+            onConflict: "user_id",
+          }
+        );
+saying: No overload matches this call.
+  Overload 1 of 2, '(values: { created_at?: string | null | undefined; data?: Json | undefined; id?: string | undefined; step?: number | undefined; updated_at?: string | null | undefined; user_id: string; }, options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Type 'Record<string, unknown>' is not assignable to type 'Json | undefined'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'Json[]': length, pop, push, concat, and 35 more.
+  Overload 2 of 2, '(values: { created_at?: string | null | undefined; data?: Json | undefined; id?: string | undefined; step?: number | undefined; updated_at?: string | null | undefined; user_id: string; }[], options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type '{ created_at?: string | null | undefined; data?: Json | undefined; id?: string | undefined; step?: number | undefined; updated_at?: string | null | undefined; user_id: string; }[]'.ts(2769)
+supabase.ts(431, 11): The expected type comes from property 'data' which is declared here on type '{ created_at?: string | null | undefined; data?: Json | undefined; id?: string | undefined; step?: number | undefined; updated_at?: string | null | undefined; user_id: string; }'
+(method) PostgrestQueryBuilder<{ PostgrestVersion: "13.0.4"; }, { Tables: { audit_logs: { Row: { created_at: string | null; event_metadata: Json | null; event_type: string; id: string; ip_address: string | null; user_agent: string | null; user_id: string | null; }; Insert: { created_at?: string | null; event_metadata?: Json | null; event_type: string; id?: string; ip_address?: string | null; user_agent?: string | null; user_id?: string | null; }; Update: { created_at?: string | null; event_metadata?: Json | null; event_type?: string; id?: string; ip_address?: string | null; user_agent?: string | null; user_id?: string | null; }; Relationships: []; }; auth_sessions: { Row: { created_at: string | null; expires_at: string; id: string; ip_address: string | null; last_used_at: string | null; token_hash: string; user_agent: string | null; user_id: string; }; Insert: { created_at?: string | null; expires_at: string; id?: string; ip_address?: string | null; last_used_at?: string | null; token_hash: string; user_agent?: string | null; user_id: string; }; Update: { created_at?: string | null; expires_at?: string; id?: string; ip_address?: string | null; last_used_at?: string | null; token_hash?: string; user_agent?: string | null; user_id?: string; }; Relationships: []; }; capstone_submissions: { Row: { capstone_id: string; graded_at: string | null; grader_feedback: string | null; id: string; mastery_percent: number | null; status: string | null; submission_data: Json; submitted_at: string | null; user_id: string; }; Insert: { capstone_id: string; graded_at?: string | null; grader_feedback?: string ...<{
+    created_at?: string | null | undefined;
+    data?: Json | undefined;
+    id?: string;
+    step?: number;
+    updated_at?: string | null;
+    user_id: string;
+}>(values: {
+    created_at?: string | null;
+    data?: Json | null;
+    id?: string;
+    step?: number;
+    updated_at?: string | null;
+    user_id: string;
+}, options?: {
+    onConflict?: string;
+    ignoreDuplicates?: boolean;
+    count?: "exact" | "planned" | "estimated";
+}): PostgrestFilterBuilder<{
+    PostgrestVersion: "13.0.4";
+}, {
+    Tables: {
+        audit_logs: {
+            Row: {
+                created_at: string | null;
+                event_metadata: Json | null;
+                event_type: string;
+                id: string;
+                ip_address: string | null;
+                user_agent: string | null;
+                user_id: string | null;
+            };
+            Insert: {
+                created_at?: string | null;
+                event_metadata?: Json | null;
+                event_type: string;
+                id?: string;
+                ip_address?: string | null;
+                user_agent?: string | null;
+                user_id?: string | null;
+            };
+            Update: {
+                created_at?: string | null;
+                event_metadata?: Json | null;
+                event_type?: string;
+                id?: string;
+                ip_address?: string | null;
+                user_agent?: string | null;
+                user_id?: string | null;
+            };
+            Relationships: [];
+        };
+        auth_sessions: {
+            Row: {
+                created_at: string | null;
+                expires_at: string;
+                id: string;
+                ip_address: string | null;
+                last_used_at: string | null;
+                token_hash: string;
+                user_agent: string | null;
+                user_id: string;
+            };
+            Insert: {
+                created_at?: string | null;
+                expires_at: string;
+                id?: string;
+                ip_address?: string | null;
+                last_used_at?: string | null;
+                token_hash: string;
+                user_agent?: string | null;
+                user_id: string;
+            };
+            Update: {
+                created_at?: string | null;
+                expires_at?: string;
+                id?: string;
+                ip_address?: string | null;
+                last_used_at?: string | null;
+                token_hash?: string;
+                user_agent?: string | null;
+                user_id?: string;
+            };
+            Relationships: [];
+        };
+        capstone_submissions: {
+            Row: {
+                capstone_id: string;
+                graded_at: string | null;
+                grader_feedback: string | null;
+                id: string;
+                mastery_percent: number | null;
+                status: string | null;
+                submission_data: Json;
+                submitted_at: string | null;
+                user_id: string;
+            };
+            Insert: {
+                capstone_id: string;
+                graded_at?: string | null;
+                grader_feedback?: string | null;
+                id?: string;
+                mastery_percent?: number | null;
+                status?: string | null;
+                submission_data?: Json;
+                submitted_at?: string | null;
+                user_id: string;
+            };
+            Update: {
+                capstone_id?: string;
+                graded_at?: string | null;
+                grader_feedback?: string | null;
+                id?: string;
+                mastery_percent?: number | null;
+                status?: string | null;
+                submission_data?: Json;
+                submitted_at?: string | null;
+                user_id?: string;
+            };
+            Relationships: [{
+                foreignKeyName: "capstone_submissions_capstone_id_fkey";
+                columns: ["capstone_id"];
+                isOneToOne: false;
+                referencedRelation: "capstones";
+                referencedColumns: ["id"];
+            }];
+        };
+        capstones: {
+            Row: {
+                created_at: string | null;
+                created_by: string | null;
+                description: string | null;
+                grading_criteria: Json | null;
+                id: string;
+                instructions: string | null;
+                module_id: string;
+                order_index: number;
+                published: boolean | null;
+                required_mastery_percent: number | null;
+                submission_type: string | null;
+                title: string;
+                updated_at: string | null;
+                updated_by: string | null;
+            };
+            Insert: {
+                created_at?: string | null;
+                created_by?: string | null;
+                description?: string | null;
+                grading_criteria ... (+1 overload)
+No quick fixes available
+
+3. auditService.ts
+
+* red line hover error on "insert" in:
+await this.supabase
+        .from('audit_logs')
+        .insert({
+          event_type: eventType,
+          user_id: userId || null,
+          event_metadata: metadata || {},
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        });
+saying: No overload matches this call.
+  Overload 1 of 2, '(values: { created_at?: string | null | undefined; event_metadata?: Json | undefined; event_type: string; id?: string | undefined; ip_address?: string | null | undefined; user_agent?: string | ... 1 more ... | undefined; user_id?: string | ... 1 more ... | undefined; }, options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Type 'Record<string, unknown>' is not assignable to type 'Json | undefined'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'Json[]': length, pop, push, concat, and 35 more.
+  Overload 2 of 2, '(values: { created_at?: string | null | undefined; event_metadata?: Json | undefined; event_type: string; id?: string | undefined; ip_address?: string | null | undefined; user_agent?: string | ... 1 more ... | undefined; user_id?: string | ... 1 more ... | undefined; }[], options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Object literal may only specify known properties, and 'event_type' does not exist in type '{ created_at?: string | null | undefined; event_metadata?: Json | undefined; event_type: string; id?: string | undefined; ip_address?: string | null | undefined; user_agent?: string | null | undefined; user_id?: string | ... 1 more ... | undefined; }[]'.ts(2769)
+supabase.ts(29, 11): The expected type comes from property 'event_metadata' which is declared here on type '{ created_at?: string | null | undefined; event_metadata?: Json | undefined; event_type: string; id?: string | undefined; ip_address?: string | null | undefined; user_agent?: string | null | undefined; user_id?: string | ... 1 more ... | undefined; }'
+(method) PostgrestQueryBuilder<{ ...; }, { Tables: { audit_logs: { Row: { created_at: string | null; event_metadata: Json | null; event_type: string; id: string; ip_address: string | null; user_agent: string | null; user_id: string | null; }; Insert: { created_at?: string | null; event_metadata?: Json | null; event_type: string; id?: string; ip_address?: string | null; user_agent?: string | null; user_id?: string | null; }; Update: { created_at?: string | null; event_metadata?: Json | null; event_type?: string; id?: string; ip_address?: string | null; user_agent?: string | null; user_id?: string | null; }; Relationships: []; }; auth_sessions: { Row: { created_at: string | null; expires_at: string; id: string; ip_address: string | null; last_used_at: string | null; token_hash: string; user_agent: string | null; user_id: string; }; Insert: { created_at?: string | null; expires_at: string; id?: string; ip_address?: string | null; last_used_at?: string | null; token_hash: string; user_agent?: string | null; user_id: string; }; Update: { created_at?: string | null; expires_at?: string; id?: string; ip_address?: string | null; last_used_at?: string | null; token_hash?: string; user_agent?: string | null; user_id?: string; }; Relationships: []; }; capstone_submissions: { Row: { capstone_id: string; graded_at: string | null; grader_feedback: string | null; id: string; mastery_percent: number | null; status: string | null; submission_data: Json; submitted_at: string | null; user_id: string; }; Insert: { capstone_id: string; graded_at?: string | null; grader_feedback?: string | null; id?: string ...<{
+    created_at?: string | null | undefined;
+    event_metadata?: Json | undefined;
+    event_type: string;
+    id?: string;
+    ip_address?: string | null;
+    user_agent?: string | null;
+    user_id?: string | null;
+}>(values: {
+    created_at?: string | null;
+    event_metadata?: Json | null;
+    event_type: string;
+    id?: string;
+    ip_address?: string | null;
+    user_agent?: string | null;
+    user_id?: string | null;
+}, options?: {
+    count?: "exact" | "planned" | "estimated";
+}): PostgrestFilterBuilder<{
+    PostgrestVersion: "13.0.4";
+}, {
+    Tables: {
+        audit_logs: {
+            Row: {
+                created_at: string | null;
+                event_metadata: Json | null;
+                event_type: string;
+                id: string;
+                ip_address: string | null;
+                user_agent: string | null;
+                user_id: string | null;
+            };
+            Insert: {
+                created_at?: string | null;
+                event_metadata?: Json | null;
+                event_type: string;
+                id?: string;
+                ip_address?: string | null;
+                user_agent?: string | null;
+                user_id?: string | null;
+            };
+            Update: {
+                created_at?: string | null;
+                event_metadata?: Json | null;
+                event_type?: string;
+                id?: string;
+                ip_address?: string | null;
+                user_agent?: string | null;
+                user_id?: string | null;
+            };
+            Relationships: [];
+        };
+        auth_sessions: {
+            Row: {
+                created_at: string | null;
+                expires_at: string;
+                id: string;
+                ip_address: string | null;
+                last_used_at: string | null;
+                token_hash: string;
+                user_agent: string | null;
+                user_id: string;
+            };
+            Insert: {
+                created_at?: string | null;
+                expires_at: string;
+                id?: string;
+                ip_address?: string | null;
+                last_used_at?: string | null;
+                token_hash: string;
+                user_agent?: string | null;
+                user_id: string;
+            };
+            Update: {
+                created_at?: string | null;
+                expires_at?: string;
+                id?: string;
+                ip_address?: string | null;
+                last_used_at?: string | null;
+                token_hash?: string;
+                user_agent?: string | null;
+                user_id?: string;
+            };
+            Relationships: [];
+        };
+        capstone_submissions: {
+            Row: {
+                capstone_id: string;
+                graded_at: string | null;
+                grader_feedback: string | null;
+                id: string;
+                mastery_percent: number | null;
+                status: string | null;
+                submission_data: Json;
+                submitted_at: string | null;
+                user_id: string;
+            };
+            Insert: {
+                capstone_id: string;
+                graded_at?: string | null;
+                grader_feedback?: string | null;
+                id?: string;
+                mastery_percent?: number | null;
+                status?: string | null;
+                submission_data?: Json;
+                submitted_at?: string | null;
+                user_id: string;
+            };
+            Update: {
+                capstone_id?: string;
+                graded_at?: string | null;
+                grader_feedback?: string | null;
+                id?: string;
+                mastery_percent?: number | null;
+                status?: string | null;
+                submission_data?: Json;
+                submitted_at?: string | null;
+                user_id?: string;
+            };
+            Relationships: [{
+                foreignKeyName: "capstone_submissions_capstone_id_fkey";
+                columns: ["capstone_id"];
+                isOneToOne: false;
+                referencedRelation: "capstones";
+                referencedColumns: ["id"];
+            }];
+        };
+        capstones: {
+            Row: {
+                created_at: string | null;
+                created_by: string | null;
+                description: string | null;
+                grading_criteria: Json | null;
+                id: string;
+                instructions: string | null;
+                module_id: string;
+                order_index: number;
+                published: boolean | null;
+                required_mastery_percent: number | null;
+                submission_type: string | null;
+                title: string;
+                updated_at: string | null;
+                updated_by: string | null;
+            };
+            Insert: {
+                created_at?: string | null;
+                created_by?: string | null;
+                description ... (+1 overload)
+No quick fixes available
+
+4. app/dashboard/page.tsx
+
+* yellow line hover error on "cookies" in:
+import { cookies } from 'next/headers';
+saying: 'cookies' is declared but its value is never read.ts(6133)
+'cookies' is defined but never used.eslint@typescript-eslint/no-unused-vars
+(alias) function cookies(): Promise<ReadonlyRequestCookies>
+import cookies
+
+*red line hover error on "hierarchy" in:
+<EnrollmentCard 
+            hierarchy={path}
+            userId={user.userId}
+          />
+saying: Type '{ id: string; name: string; slug: string; description: string | null; published: boolean | null; pillars: { id: string; name: string; description: string | null; order_index: number; realms: { ...; }[]; }[]; }' is not assignable to type 'PathWithHierarchy'.
+  Type '{ id: string; name: string; slug: string; description: string | null; published: boolean | null; pillars: { id: string; name: string; description: string | null; order_index: number; realms: { ...; }[]; }[]; }' is missing the following properties from type '{ created_at: string | null; created_by: string | null; description: string | null; id: string; journey_id: string | null; name: string; order_index: number; published: boolean | null; slug: string; updated_at: string | null; updated_by: string | null; }': created_at, created_by, journey_id, order_index, and 2 more.ts(2322)
+EnrollmentCard.tsx(8, 3): The expected type comes from property 'hierarchy' which is declared here on type 'IntrinsicAttributes & EnrollmentCardProps'
+(property) EnrollmentCardProps.hierarchy: PathWithHierarchy
+No quick fixes available
+
+*red line hover error on "hierarchy" in:
+<DashboardShell 
+        hierarchy={path}
+        enrollment={enrollment}
+        userId={user.userId}
+      />
+saying: Type '{ id: string; name: string; slug: string; description: string | null; published: boolean | null; pillars: { id: string; name: string; description: string | null; order_index: number; realms: { ...; }[]; }[]; }' is not assignable to type 'PathWithHierarchy'.
+  Type '{ id: string; name: string; slug: string; description: string | null; published: boolean | null; pillars: { id: string; name: string; description: string | null; order_index: number; realms: { ...; }[]; }[]; }' is missing the following properties from type '{ created_at: string | null; created_by: string | null; description: string | null; id: string; journey_id: string | null; name: string; order_index: number; published: boolean | null; slug: string; updated_at: string | null; updated_by: string | null; }': created_at, created_by, journey_id, order_index, and 2 more.ts(2322)
+DashboardShell.tsx(8, 3): The expected type comes from property 'hierarchy' which is declared here on type 'IntrinsicAttributes & DashboardShellProps'
+(property) DashboardShellProps.hierarchy: PathWithHierarchy
+No quick fixes available
+
+
+
+
+
+// --- filename: lib/server/sessionService.ts ---
+/**
+ * Session Management Service
+ * Handles server-side session creation, validation, and revocation
+ * Uses secure HttpOnly cookies with hashed tokens
+ */
+
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { createHash, randomBytes } from 'crypto';
+import { cookies } from 'next/headers';
+
+const SESSION_COOKIE_NAME = 'wdm_session';
+const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export interface CreateSessionParams {
+  userId: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface ValidateSessionResult {
+  valid: boolean;
+  userId?: string;
+  sessionId?: string;
+}
+
+class SessionService {
+  private supabase = getSupabaseAdmin();
+
+  /**
+   * Hash a session token using SHA-256
+   */
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Generate a cryptographically secure session token
+   */
+  private generateToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Create a new session
+   * Returns raw token (only shown once)
+   */
+  async createSession(params: CreateSessionParams): Promise<string> {
+    const { userId, ipAddress, userAgent } = params;
+
+    const sessionToken = this.generateToken();
+    const tokenHash = this.hashToken(sessionToken);
+    const expiresAt = new Date(Date.now() + SESSION_DURATION);
+
+    const { error } = await this.supabase
+      .from('auth_sessions')
+      .insert({
+        user_id: userId,
+        token_hash: tokenHash,
+        expires_at: expiresAt.toISOString(),
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+
+    if (error) {
+      throw new Error('Failed to create session');
+    }
+
+    return sessionToken;
+  }
+
+  /**
+   * Validate a session token
+   * Returns user ID if valid
+   */
+  async validateSession(token: string): Promise<ValidateSessionResult> {
+    if (!token) {
+      return { valid: false };
+    }
+
+    try {
+      const tokenHash = this.hashToken(token);
+
+      const { data: session, error } = await this.supabase
+        .from('auth_sessions')
+        .select('id, user_id, expires_at')
+        .eq('token_hash', tokenHash)
+        .gte('expires_at', new Date().toISOString())
+        .single();
+
+      if (error || !session) {
+        return { valid: false };
+      }
+
+      // Update last_used_at
+      await this.supabase
+        .from('auth_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      return {
+        valid: true,
+        userId: session.user_id,
+        sessionId: session.id,
+      };
+    } catch (error) {
+      console.error('Session validation error:', error);
+      return { valid: false };
+    }
+  }
+
+  /**
+   * Revoke a specific session
+   */
+  async revokeSession(token: string): Promise<void> {
+    const tokenHash = this.hashToken(token);
+
+    await this.supabase
+      .from('auth_sessions')
+      .delete()
+      .eq('token_hash', tokenHash);
+  }
+
+  /**
+   * Revoke all sessions for a user
+   */
+  async revokeAllUserSessions(userId: string): Promise<void> {
+    await this.supabase
+      .from('auth_sessions')
+      .delete()
+      .eq('user_id', userId);
+  }
+
+  /**
+   * Set session cookie
+   */
+  setSessionCookie(token: string): void {
+    const cookieStore = cookies();
+    
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: SESSION_DURATION / 1000, // Convert to seconds
+    });
+  }
+
+  /**
+   * Get session token from cookie
+   */
+  getSessionToken(): string | null {
+    const cookieStore = cookies();
+    const cookie = cookieStore.get(SESSION_COOKIE_NAME);
+    return cookie?.value || null;
+  }
+
+  /**
+   * Clear session cookie
+   */
+  clearSessionCookie(): void {
+    const cookieStore = cookies();
+    cookieStore.delete(SESSION_COOKIE_NAME);
+  }
+
+  /**
+   * Get current user from session
+   */
+  async getCurrentUser(): Promise<{ userId: string } | null> {
+    const token = this.getSessionToken();
+    
+    if (!token) {
+      return null;
+    }
+
+    const result = await this.validateSession(token);
+    
+    if (!result.valid || !result.userId) {
+      return null;
+    }
+
+    return { userId: result.userId };
+  }
+}
+
+export const sessionService = new SessionService();
+
+// --- filename: lib/server/onboardingService.ts ---
+/**
+ * Onboarding Service
+ * Handles multi-step onboarding persistence and validation
+ */
+
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  normalizePhone,
+  normalizeMatric,
+  isValidMatric,
+} from "@/lib/validators";
+
+export interface SaveStepParams {
+  userId: string;
+  step: number;
+  data: Record<string, unknown>;
+}
+
+export interface ConflictCheckParams {
+  matricNumber?: string;
+  whatsappNumber?: string;
+  userId: string;
+}
+
+export interface ConflictCheckResult {
+  conflict: boolean;
+  field?: "matric" | "whatsapp";
+}
+
+class OnboardingService {
+  private supabase = getSupabaseAdmin();
+
+  /**
+   * Check for duplicate matric or whatsapp
+   */
+  async checkConflict(
+    params: ConflictCheckParams
+  ): Promise<ConflictCheckResult> {
+    const { matricNumber, whatsappNumber, userId } = params;
+
+    try {
+      // Check matric number
+      if (matricNumber) {
+        const normalized = normalizeMatric(matricNumber);
+
+        if (!isValidMatric(normalized)) {
+          return { conflict: false };
+        }
+
+        const { data: matricConflict } = await this.supabase
+          .from("profiles")
+          .select("id")
+          .eq("matric_number", normalized)
+          .neq("id", userId)
+          .single();
+
+        if (matricConflict) {
+          return { conflict: true, field: "matric" };
+        }
+      }
+
+      // Check whatsapp number
+      if (whatsappNumber) {
+        const normalized = normalizePhone(whatsappNumber);
+
+        if (!normalized) {
+          return { conflict: false };
+        }
+
+        const { data: whatsappConflict } = await this.supabase
+          .from("profiles")
+          .select("id")
+          .eq("whatsapp_number", normalized)
+          .neq("id", userId)
+          .single();
+
+        if (whatsappConflict) {
+          return { conflict: true, field: "whatsapp" };
+        }
+      }
+
+      return { conflict: false };
+    } catch (error) {
+      console.error("Conflict check error:", error);
+      return { conflict: false };
+    }
+  }
+
+  /**
+   * Save onboarding step
+   */
+  async saveStep(
+    params: SaveStepParams
+  ): Promise<{ success: boolean; error?: string }> {
+    const { userId, step, data } = params;
+
+    try {
+      // Normalize phone if present
+      if (data.whatsapp_number && typeof data.whatsapp_number === "string") {
+        const normalized = normalizePhone(data.whatsapp_number);
+        if (!normalized) {
+          return { success: false, error: "Invalid phone number format" };
+        }
+        data.whatsapp_number = normalized;
+      }
+
+      // Normalize matric if present
+      if (data.matric_number && typeof data.matric_number === "string") {
+        const normalized = normalizeMatric(data.matric_number);
+        if (!isValidMatric(normalized)) {
+          return { success: false, error: "Invalid matric number format" };
+        }
+        data.matric_number = normalized;
+      }
+
+      // Update profiles table
+      const profileUpdate: Record<string, unknown> = {
+        registration_step: step,
+        ...data,
+      };
+
+      const { error: profileError } = await this.supabase
+        .from("profiles")
+        .update(profileUpdate)
+        .eq("id", userId);
+
+      if (profileError) {
+        console.error("Profile update error:", profileError);
+        return { success: false, error: "Failed to save profile" };
+      }
+
+      // Update onboarding_progress table
+      const { error: progressError } = await this.supabase
+        .from("onboarding_progress")
+        .upsert(
+          {
+            user_id: userId,
+            step,
+            data,
+          },
+          {
+            onConflict: "user_id",
+          }
+        );
+
+      if (progressError) {
+        console.error("Progress update error:", progressError);
+        return { success: false, error: "Failed to save progress" };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Save step error:", error);
+      return { success: false, error: "Internal server error" };
+    }
+  }
+
+  /**
+   * Get onboarding progress
+   */
+  async getProgress(userId: string): Promise<{
+    step: number;
+    data: Record<string, unknown>;
+  } | null> {
+    try {
+      const { data: progress } = await this.supabase
+        .from("onboarding_progress")
+        .select("step, data")
+        .eq("user_id", userId)
+        .single();
+
+      if (!progress) {
+        return { step: 0, data: {} };
+      }
+
+      return {
+        step: progress.step || 0,
+        data: (progress.data as Record<string, unknown>) || {},
+      };
+    } catch (error) {
+      console.error("Get progress error:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Complete onboarding
+   */
+  async completeOnboarding(
+    userId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await this.supabase
+        .from("profiles")
+        .update({
+          registration_completed: true,
+        })
+        .eq("id", userId);
+
+      if (error) {
+        return { success: false, error: "Failed to complete onboarding" };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Complete onboarding error:", error);
+      return { success: false, error: "Internal server error" };
+    }
+  }
+}
+
+export const onboardingService = new OnboardingService();
+
+// --- filename: lib/server/auditService.ts ---
+/**
+ * Audit Logging Service
+ * Logs security-relevant events for compliance and debugging
+ */
+
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+
+export interface AuditLogParams {
+  eventType: string;
+  userId?: string;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+class AuditService {
+  private supabase = getSupabaseAdmin();
+
+  async log(params: AuditLogParams): Promise<void> {
+    const { eventType, userId, metadata, ipAddress, userAgent } = params;
+
+    try {
+      await this.supabase
+        .from('audit_logs')
+        .insert({
+          event_type: eventType,
+          user_id: userId || null,
+          event_metadata: metadata || {},
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        });
+    } catch (error) {
+      // Don't throw - audit logging should never break the main flow
+      console.error('Audit log error:', error);
+    }
+  }
+}
+
+const auditService = new AuditService();
+
+// Export as function for convenience
+export const auditLog = (params: AuditLogParams) => auditService.log(params);
+
+// --- filename: app/dashboard/page.tsx ---
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { sessionService } from '@/lib/server/sessionService';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import EnrollmentCard from '@/components/dashboard/EnrollmentCard';
+import DashboardShell from '@/components/dashboard/DashboardShell';
+
+/**
+ * CRITICAL: This is a Server Component that renders on the server
+ * It checks authentication and enrollment status BEFORE sending HTML
+ * This eliminates any flash of wrong UI on the client
+ */
+export default async function DashboardPage() {
+  // Step 1: Check authentication (server-side)
+  const user = await sessionService.getCurrentUser();
+  
+  if (!user) {
+    // Not logged in - redirect to auth page
+    redirect('/auth');
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  // Step 2: Check onboarding and payment status
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('registration_completed, payment_status')
+    .eq('id', user.userId)
+    .single();
+
+  // Redirect to onboarding if not completed
+  if (!profile?.registration_completed) {
+    redirect('/onboarding');
+  }
+
+  // Redirect to paywall if not paid
+  if (profile?.payment_status !== 'paid') {
+    redirect('/paywall');
+  }
+
+  // Step 3: Fetch enrollment status
+  const { data: enrollment } = await supabase
+    .from('enrollments')
+    .select('*')
+    .eq('user_id', user.userId)
+    .single();
+
+  // Step 4: Fetch learning hierarchy (default to frontend-development)
+  const { data: path } = await supabase
+    .from('paths')
+    .select(`
+      id,
+      name,
+      slug,
+      description,
+      published,
+      pillars (
+        id,
+        name,
+        description,
+        order_index,
+        realms (
+          id,
+          name,
+          description,
+          order_index,
+          modules (
+            id,
+            name,
+            description,
+            order_index,
+            lessons (
+              id,
+              title,
+              description,
+              order_index
+            )
+          )
+        )
+      )
+    `)
+    .eq('slug', 'frontend-development')
+    .eq('published', true)
+    .single();
+
+  if (!path) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Error Loading Content</h1>
+          <p className="mt-2 text-gray-600">Unable to load learning path. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 5: Render based on enrollment
+  if (!enrollment) {
+    // User is NOT enrolled - show enrollment UI
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        <div className="container mx-auto px-4 py-8">
+          <EnrollmentCard 
+            hierarchy={path}
+            userId={user.userId}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // User IS enrolled - show main dashboard
+  return (
+    <div className="min-h-screen bg-gray-950 text-white">
+      <DashboardShell 
+        hierarchy={path}
+        enrollment={enrollment}
+        userId={user.userId}
+      />
+    </div>
+  );
+}

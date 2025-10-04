@@ -1,53 +1,101 @@
+// --- filename: app/forgot-password/page.tsx ---
 'use client';
 
-import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { motion } from 'framer-motion';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { AuthBackground } from '@/components/AuthBackground';
+import React, { useState } from 'react';
+import AuthBackground from '@/components/AuthBackground';
+import CursorEffect from '@/components/CursorEffect';
+import { useRouter } from 'next/navigation';
 
-export default function ForgotPasswordPage() {
-	const [email, setEmail] = useState('');
-	const [message, setMessage] = useState('');
+export default function ForgotPassword() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-	const handleForgot = async (e: React.FormEvent) => {
-		e.preventDefault();
-		const { error } = await supabase.auth.resetPasswordForEmail(email, {
-			redirectTo: `${window.location.origin}/reset-password`,
-		});
-		setMessage(error ? error.message : 'Password reset email sent!');
-	};
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
 
-	return (
-		<div className="relative min-h-screen flex items-center justify-center">
-			<AuthBackground />
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
 
-			<motion.div
-				initial={{ opacity: 0, y: 25 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.7 }}
-				className="relative z-10 w-full max-w-md p-8 rounded-2xl backdrop-blur-xl bg-gray-900/70 border border-gray-800/80 shadow-[0_0_25px_rgba(57,230,255,0.2)]"
-			>
-				<h1 className="text-2xl font-semibold text-white mb-6 text-center">Forgot Password</h1>
-				<form onSubmit={handleForgot} className="space-y-4">
-					<Input
-						type="email"
-						placeholder="Your email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						required
-						className="bg-gray-800/60 text-white border-gray-700 focus:border-[#39e6ff] focus:ring-[#39e6ff]"
-					/>
-					<Button
-						type="submit"
-						className="cursor-pointer w-full bg-gradient-to-r from-[#39e6ff] to-[#00ff9f] text-black hover:shadow-lg hover:shadow-[#39e6ff]/30 transition-all duration-300"
-					>
-						Send Reset Link
-					</Button>
-				</form>
-				{message && <p className="mt-4 text-center text-emerald-400">{message}</p>}
-			</motion.div>
-		</div>
-	);
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage(data.message || 'Check your email for reset link.');
+        setSuccess(true);
+      } else {
+        setMessage(data.error || 'Failed to send reset email');
+        setSuccess(false);
+      }
+    } catch (err) {
+      setMessage('Network error. Please try again.');
+      setSuccess(false);
+      console.warn(err)
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen relative">
+      <AuthBackground />
+      <CursorEffect />
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-[#06132a] rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-bold mb-4">Forgot password</h2>
+          
+          {message && (
+            <div className={`mb-3 text-sm ${success ? 'text-green-400' : 'text-rose-400'}`}>
+              {message}
+            </div>
+          )}
+
+          {!success ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-300 block mb-2">Email</label>
+                <input
+                  type="email"
+                  className="w-full p-3 rounded bg-transparent border border-gray-700"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <button
+                disabled={loading}
+                className="w-full p-3 rounded bg-indigo-600 text-white disabled:opacity-50"
+              >
+                {loading ? 'Sending...' : 'Send reset link'}
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => router.push('/auth')}
+              className="w-full p-3 rounded border border-gray-700 text-white"
+            >
+              Back to sign in
+            </button>
+          )}
+
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => router.push('/auth')}
+              className="text-sm text-gray-400 underline"
+            >
+              Back to sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

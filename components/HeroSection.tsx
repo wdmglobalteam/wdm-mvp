@@ -1,558 +1,601 @@
-'use client';
+// --- filename: components/HeroSection.tsx ---
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
-import Link from 'next/link';
-import { Button } from './ui/button';
-import { Play, Code } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, useMotionValue, useSpring } from "framer-motion";
+import { Button } from "./ui/button";
+import { Play, Code } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface Node {
-	id: number;
-	x: number;
-	y: number;
-	size: number;
-	brightness: number;
-	pulseSpeed: number;
-	driftSpeed: number;
-	connections: number[];
-	baseX: number;
-	baseY: number;
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  brightness: number;
+  pulseSpeed: number;
+  driftSpeed: number;
+  connections: number[];
+  baseX: number;
+  baseY: number;
 }
 
 interface Particle {
-	id: number;
-	x: number;
-	y: number;
-	vx: number;
-	vy: number;
-	size: number;
-	opacity: number;
-	life: number;
-	maxLife: number;
-	color: string;
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  opacity: number;
+  life: number;
+  maxLife: number;
+  color: string;
 }
 
 interface AmbientParticle {
-	id: number;
-	x: number;
-	y: number;
-	size: number;
-	// stable per-instance animation settings:
-	duration: number;
-	delay: number;
-	offset: number;
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  duration: number;
+  delay: number;
+  offset: number;
 }
 
 export function HeroSection() {
-	const [nodes, setNodes] = useState<Node[]>([]);
-	const [particles, setParticles] = useState<Particle[]>([]);
-	const [ambientParticles, setAmbientParticles] = useState<AmbientParticle[]>([]);
-	const [hoveredNode, setHoveredNode] = useState<number | null>(null);
-	const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-	const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-	const containerRef = useRef<HTMLDivElement>(null);
-	const animationRef = useRef<number | null>(null);
-	const lastTime = useRef<number>(0);
+  const router = useRouter();
+  const { user } = useAuth();
+  
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [ambientParticles, setAmbientParticles] = useState<AmbientParticle[]>([]);
+  const [hoveredNode, setHoveredNode] = useState<number | null>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number | null>(null);
+  const lastTime = useRef<number>(0);
 
-	const mouseX = useMotionValue(0);
-	const mouseY = useMotionValue(0);
-	const springX = useSpring(mouseX, { stiffness: 150, damping: 30 });
-	const springY = useSpring(mouseY, { stiffness: 150, damping: 30 });
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springX = useSpring(mouseX, { stiffness: 150, damping: 30 });
+  const springY = useSpring(mouseY, { stiffness: 150, damping: 30 });
 
-	// stable ID generator for particles (avoid Date.now+Math.random)
-	const particleIdRef = useRef(0);
+  const particleIdRef = useRef(0);
 
-	// stable per-metric delays so animations don't re-seed every render
-	const metricItems = [
-		{ value: '500+', label: 'Students' },
-		{ value: '50+', label: 'Projects' },
-		{ value: '98%', label: 'Success Rate' },
-	];
-	const metricDelaysRef = useRef<number[]>(metricItems.map(() => Math.random() * 0.6));
+  const metricItems = [
+    { value: "500+", label: "Students" },
+    { value: "50+", label: "Projects" },
+    { value: "98%", label: "Success Rate" },
+  ];
+  const metricDelaysRef = useRef<number[]>(
+    metricItems.map(() => Math.random() * 0.6)
+  );
 
-	// Generate ambient particles only client-side ONCE and store stable durations/delays
-	useEffect(() => {
-		const list: AmbientParticle[] = Array.from({ length: 30 }, (_, i) => {
-			const duration = 4 + Math.random() * 3;
-			const delay = Math.random() * 2;
-			const offset = Math.random() * Math.PI * 2;
-			return {
-				id: i,
-				x: Math.random() * 100,
-				y: Math.random() * 100,
-				size: Math.random() * 1.5 + 0.5,
-				duration,
-				delay,
-				offset,
-			};
-		});
-		setAmbientParticles(list);
-	}, []);
+  function heroAction() {
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
+    // Redirect to dashboard (will handle onboarding/paywall routing)
+    router.push("/dashboard");
+  }
 
-	// Initialize nodes with constellation-like positioning (client-side effect)
-	useEffect(() => {
-		const updateDimensions = () => {
-			if (containerRef.current) {
-				const rect = containerRef.current.getBoundingClientRect();
-				setDimensions({ width: rect.width, height: rect.height });
-			}
-		};
+  const label = !user ? "Start Learning" : "Continue Learning";
 
-		updateDimensions();
-		window.addEventListener('resize', updateDimensions);
-		return () => window.removeEventListener('resize', updateDimensions);
-	}, []);
+  // Generate ambient particles only client-side ONCE
+  useEffect(() => {
+    const list: AmbientParticle[] = Array.from({ length: 30 }, (_, i) => {
+      const duration = 4 + Math.random() * 3;
+      const delay = Math.random() * 2;
+      const offset = Math.random() * Math.PI * 2;
+      return {
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * 1.5 + 0.5,
+        duration,
+        delay,
+        offset,
+      };
+    });
+    setAmbientParticles(list);
+  }, []);
 
-	useEffect(() => {
-		if (dimensions.width === 0 || dimensions.height === 0) return;
+  // Initialize nodes
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDimensions({ width: rect.width, height: rect.height });
+      }
+    };
 
-		const nodeCount = Math.min(25, Math.max(15, Math.floor(dimensions.width / 80)));
-		const newNodes: Node[] = [];
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
+  }, []);
 
-		for (let i = 0; i < nodeCount; i++) {
-			const angle = (i / nodeCount) * Math.PI * 2;
-			const radius = 100 + Math.random() * 200;
-			const centerX = dimensions.width / 2;
-			const centerY = dimensions.height / 2;
+  useEffect(() => {
+    if (dimensions.width === 0 || dimensions.height === 0) return;
 
-			const spiralOffset = Math.sin(angle * 3) * 50;
-			const x = centerX + Math.cos(angle) * (radius + spiralOffset) + (Math.random() - 0.5) * 100;
-			const y = centerY + Math.sin(angle) * (radius + spiralOffset) + (Math.random() - 0.5) * 100;
+    const nodeCount = Math.min(
+      25,
+      Math.max(15, Math.floor(dimensions.width / 80))
+    );
+    const newNodes: Node[] = [];
 
-			const node: Node = {
-				id: i,
-				x: Math.max(50, Math.min(dimensions.width - 50, x)),
-				y: Math.max(50, Math.min(dimensions.height - 50, y)),
-				baseX: x,
-				baseY: y,
-				size: 3 + Math.random() * 4,
-				brightness: 0.3 + Math.random() * 0.7,
-				pulseSpeed: 0.5 + Math.random() * 1.5,
-				driftSpeed: 0.1 + Math.random() * 0.3,
-				connections: [],
-			};
+    for (let i = 0; i < nodeCount; i++) {
+      const angle = (i / nodeCount) * Math.PI * 2;
+      const radius = 100 + Math.random() * 200;
+      const centerX = dimensions.width / 2;
+      const centerY = dimensions.height / 2;
 
-			newNodes.push(node);
-		}
+      const spiralOffset = Math.sin(angle * 3) * 50;
+      const x =
+        centerX +
+        Math.cos(angle) * (radius + spiralOffset) +
+        (Math.random() - 0.5) * 100;
+      const y =
+        centerY +
+        Math.sin(angle) * (radius + spiralOffset) +
+        (Math.random() - 0.5) * 100;
 
-		newNodes.forEach((node, i) => {
-			const nearbyNodes = newNodes
-				.filter((otherNode, j) => {
-					if (i === j) return false;
-					const distance = Math.hypot(node.x - otherNode.x, node.y - otherNode.y);
-					return distance < 150;
-				})
-				.sort((a, b) => {
-					const distA = Math.hypot(node.x - a.x, node.y - a.y);
-					const distB = Math.hypot(node.x - b.x, node.y - b.y);
-					return distA - distB;
-				})
-				.slice(0, 3);
+      const node: Node = {
+        id: i,
+        x: Math.max(50, Math.min(dimensions.width - 50, x)),
+        y: Math.max(50, Math.min(dimensions.height - 50, y)),
+        baseX: x,
+        baseY: y,
+        size: 3 + Math.random() * 4,
+        brightness: 0.3 + Math.random() * 0.7,
+        pulseSpeed: 0.5 + Math.random() * 1.5,
+        driftSpeed: 0.1 + Math.random() * 0.3,
+        connections: [],
+      };
 
-			node.connections = nearbyNodes.map((n) => n.id);
-		});
+      newNodes.push(node);
+    }
 
-		setNodes(newNodes);
-	}, [dimensions]);
+    newNodes.forEach((node, i) => {
+      const nearbyNodes = newNodes
+        .filter((otherNode, j) => {
+          if (i === j) return false;
+          const distance = Math.hypot(
+            node.x - otherNode.x,
+            node.y - otherNode.y
+          );
+          return distance < 150;
+        })
+        .sort((a, b) => {
+          const distA = Math.hypot(node.x - a.x, node.y - a.y);
+          const distB = Math.hypot(node.x - b.x, node.y - b.y);
+          return distA - distB;
+        })
+        .slice(0, 3);
 
-	const handleMouseMove = useCallback(
-		(e: React.MouseEvent) => {
-			if (!containerRef.current) return;
+      node.connections = nearbyNodes.map((n) => n.id);
+    });
 
-			const rect = containerRef.current.getBoundingClientRect();
-			const x = e.clientX - rect.left;
-			const y = e.clientY - rect.top;
+    setNodes(newNodes);
+  }, [dimensions]);
 
-			setMousePosition({ x, y });
-			mouseX.set(x);
-			mouseY.set(y);
-		},
-		[mouseX, mouseY]
-	);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!containerRef.current) return;
 
-	const createParticle = useCallback(
-		(x: number, y: number, type: 'drift' | 'interaction' = 'drift') => {
-			const colors = ['#00ff9f', '#39e6ff', '#ffffff'];
-			const id = ++particleIdRef.current;
-			return {
-				id,
-				x,
-				y,
-				vx: (Math.random() - 0.5) * (type === 'interaction' ? 4 : 0.5),
-				vy: (Math.random() - 0.5) * (type === 'interaction' ? 4 : 0.5),
-				size: type === 'interaction' ? 2 + Math.random() * 2 : 1 + Math.random(),
-				opacity: type === 'interaction' ? 0.8 : 0.3 + Math.random() * 0.4,
-				life: 0,
-				maxLife: type === 'interaction' ? 60 : 120 + Math.random() * 180,
-				color: colors[Math.floor(Math.random() * colors.length)],
-			} as Particle;
-		},
-		[]
-	);
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-	const animate = useCallback(
-		(currentTime: number) => {
-			if (lastTime.current === 0) lastTime.current = currentTime;
-			lastTime.current = currentTime;
+      setMousePosition({ x, y });
+      mouseX.set(x);
+      mouseY.set(y);
+    },
+    [mouseX, mouseY]
+  );
 
-			setNodes((prevNodes) =>
-				prevNodes.map((node) => {
-					const time = currentTime * 0.0005;
-					const driftX = Math.sin(time * node.driftSpeed + node.id) * 15;
-					const driftY = Math.cos(time * node.driftSpeed * 0.7 + node.id) * 10;
+  const createParticle = useCallback(
+    (x: number, y: number, type: "drift" | "interaction" = "drift") => {
+      const colors = ["#00ff9f", "#39e6ff", "#ffffff"];
+      const id = ++particleIdRef.current;
+      return {
+        id,
+        x,
+        y,
+        vx: (Math.random() - 0.5) * (type === "interaction" ? 4 : 0.5),
+        vy: (Math.random() - 0.5) * (type === "interaction" ? 4 : 0.5),
+        size:
+          type === "interaction" ? 2 + Math.random() * 2 : 1 + Math.random(),
+        opacity: type === "interaction" ? 0.8 : 0.3 + Math.random() * 0.4,
+        life: 0,
+        maxLife: type === "interaction" ? 60 : 120 + Math.random() * 180,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      } as Particle;
+    },
+    []
+  );
 
-					const distanceToMouse = Math.hypot(mousePosition.x - node.x, mousePosition.y - node.y);
-					const attractionStrength = Math.max(0, 1 - distanceToMouse / 200);
-					const attractionX = attractionStrength * (mousePosition.x - node.x) * 0.02;
-					const attractionY = attractionStrength * (mousePosition.y - node.y) * 0.02;
+  const animate = useCallback(
+    (currentTime: number) => {
+      if (lastTime.current === 0) lastTime.current = currentTime;
+      lastTime.current = currentTime;
 
-					return {
-						...node,
-						x: node.baseX + driftX + attractionX,
-						y: node.baseY + driftY + attractionY,
-						brightness: node.brightness + Math.sin(time * node.pulseSpeed) * 0.2,
-					};
-				})
-			);
+      setNodes((prevNodes) =>
+        prevNodes.map((node) => {
+          const time = currentTime * 0.0005;
+          const driftX = Math.sin(time * node.driftSpeed + node.id) * 15;
+          const driftY = Math.cos(time * node.driftSpeed * 0.7 + node.id) * 10;
 
-			setParticles((prevParticles) => {
-				const newParticles = prevParticles
-					.map((particle) => ({
-						...particle,
-						x: particle.x + particle.vx,
-						y: particle.y + particle.vy,
-						vx: particle.vx * 0.99,
-						vy: particle.vy * 0.99,
-						life: particle.life + 1,
-						opacity: particle.opacity * (1 - particle.life / particle.maxLife),
-					}))
-					.filter((particle) => particle.life < particle.maxLife);
+          const distanceToMouse = Math.hypot(
+            mousePosition.x - node.x,
+            mousePosition.y - node.y
+          );
+          const attractionStrength = Math.max(0, 1 - distanceToMouse / 200);
+          const attractionX =
+            attractionStrength * (mousePosition.x - node.x) * 0.02;
+          const attractionY =
+            attractionStrength * (mousePosition.y - node.y) * 0.02;
 
-				if (Math.random() < 0.03 && dimensions.width > 0) {
-					const edge = Math.floor(Math.random() * 4);
-					let x, y;
+          return {
+            ...node,
+            x: node.baseX + driftX + attractionX,
+            y: node.baseY + driftY + attractionY,
+            brightness:
+              node.brightness + Math.sin(time * node.pulseSpeed) * 0.2,
+          };
+        })
+      );
 
-					switch (edge) {
-						case 0:
-							x = Math.random() * dimensions.width;
-							y = -10;
-							break;
-						case 1:
-							x = dimensions.width + 10;
-							y = Math.random() * dimensions.height;
-							break;
-						case 2:
-							x = Math.random() * dimensions.width;
-							y = dimensions.height + 10;
-							break;
-						default:
-							x = -10;
-							y = Math.random() * dimensions.height;
-							break;
-					}
+      setParticles((prevParticles) => {
+        const newParticles = prevParticles
+          .map((particle) => ({
+            ...particle,
+            x: particle.x + particle.vx,
+            y: particle.y + particle.vy,
+            vx: particle.vx * 0.99,
+            vy: particle.vy * 0.99,
+            life: particle.life + 1,
+            opacity: particle.opacity * (1 - particle.life / particle.maxLife),
+          }))
+          .filter((particle) => particle.life < particle.maxLife);
 
-					newParticles.push(createParticle(x, y, 'drift'));
-				}
+        if (Math.random() < 0.03 && dimensions.width > 0) {
+          const edge = Math.floor(Math.random() * 4);
+          let x, y;
 
-				return newParticles;
-			});
+          switch (edge) {
+            case 0:
+              x = Math.random() * dimensions.width;
+              y = -10;
+              break;
+            case 1:
+              x = dimensions.width + 10;
+              y = Math.random() * dimensions.height;
+              break;
+            case 2:
+              x = Math.random() * dimensions.width;
+              y = dimensions.height + 10;
+              break;
+            default:
+              x = -10;
+              y = Math.random() * dimensions.height;
+              break;
+          }
 
-			animationRef.current = requestAnimationFrame(animate);
-		},
-		[mousePosition, dimensions, createParticle]
-	);
+          newParticles.push(createParticle(x, y, "drift"));
+        }
 
-	useEffect(() => {
-		animationRef.current = requestAnimationFrame(animate);
-		return () => {
-			if (animationRef.current) {
-				cancelAnimationFrame(animationRef.current);
-			}
-		};
-	}, [animate]);
+        return newParticles;
+      });
 
-	const handleNodeHover = (nodeId: number) => {
-		setHoveredNode(nodeId);
-		const node = nodes.find((n) => n.id === nodeId);
-		if (node) {
-			// Batch particle creation in one state update
-			setParticles((prev) => {
-				const additions: Particle[] = [];
-				for (let i = 0; i < 5; i++) {
-					additions.push(
-						createParticle(
-							node.x + (Math.random() - 0.5) * 20,
-							node.y + (Math.random() - 0.5) * 20,
-							'interaction'
-						)
-					);
-				}
-				return [...prev, ...additions];
-			});
-		}
-	};
+      animationRef.current = requestAnimationFrame(animate);
+    },
+    [mousePosition, dimensions, createParticle]
+  );
 
-	return (
-		<section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-			{/* Dynamic Constellation Background */}
-			<div
-				ref={containerRef}
-				className="absolute inset-0"
-				onMouseMove={handleMouseMove}
-				onMouseLeave={() => setHoveredNode(null)}
-			>
-				{/* Ambient Reactive Particles */}
-				{ambientParticles.map((p, i) => (
-					<motion.div
-						key={p.id}
-						className="absolute bg-white/20 rounded-full pointer-events-none"
-						style={{
-							width: p.size * 2,
-							height: p.size * 2,
-							left: `${p.x}%`,
-							top: `${p.y}%`,
-						}}
-						animate={{
-							x: [
-								-mousePosition.x * 0.005 + Math.sin(p.offset + i) * 5,
-								mousePosition.x * 0.005 + Math.sin(p.offset + i + 1) * 5,
-							],
-							y: [
-								-mousePosition.y * 0.005 + Math.cos(p.offset + i) * 5,
-								mousePosition.y * 0.005 + Math.cos(p.offset + i + 1) * 5,
-							],
-							opacity: [0.2, 0.8, 0.2],
-							scale: [1, 1.5, 1],
-						}}
-						transition={{
-							duration: p.duration,
-							repeat: Infinity,
-							repeatType: 'mirror',
-							delay: p.delay,
-						}}
-					/>
-				))}
+  useEffect(() => {
+    animationRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [animate]);
 
-				{/* Connection lines */}
-				<svg className="absolute inset-0 w-full h-full pointer-events-none">
-					<defs>
-						<linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-							<stop offset="0%" stopColor="#00ff9f" stopOpacity="0.1" />
-							<stop offset="50%" stopColor="#39e6ff" stopOpacity="0.3" />
-							<stop offset="100%" stopColor="#00ff9f" stopOpacity="0.1" />
-						</linearGradient>
-					</defs>
+  const handleNodeHover = (nodeId: number) => {
+    setHoveredNode(nodeId);
+    const node = nodes.find((n) => n.id === nodeId);
+    if (node) {
+      setParticles((prev) => {
+        const additions: Particle[] = [];
+        for (let i = 0; i < 5; i++) {
+          additions.push(
+            createParticle(
+              node.x + (Math.random() - 0.5) * 20,
+              node.y + (Math.random() - 0.5) * 20,
+              "interaction"
+            )
+          );
+        }
+        return [...prev, ...additions];
+      });
+    }
+  };
 
-					{nodes.map((node) =>
-						node.connections.map((connectionId) => {
-							const connectedNode = nodes.find((n) => n.id === connectionId);
-							if (!connectedNode) return null;
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Dynamic Constellation Background */}
+      <div
+        ref={containerRef}
+        className="absolute inset-0"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoveredNode(null)}
+      >
+        {/* Ambient Reactive Particles */}
+        {ambientParticles.map((p, i) => (
+          <motion.div
+            key={p.id}
+            className="absolute bg-white/20 rounded-full pointer-events-none"
+            style={{
+              width: p.size * 2,
+              height: p.size * 2,
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+            }}
+            animate={{
+              x: [
+                -mousePosition.x * 0.005 + Math.sin(p.offset + i) * 5,
+                mousePosition.x * 0.005 + Math.sin(p.offset + i + 1) * 5,
+              ],
+              y: [
+                -mousePosition.y * 0.005 + Math.cos(p.offset + i) * 5,
+                mousePosition.y * 0.005 + Math.cos(p.offset + i + 1) * 5,
+              ],
+              opacity: [0.2, 0.8, 0.2],
+              scale: [1, 1.5, 1],
+            }}
+            transition={{
+              duration: p.duration,
+              repeat: Infinity,
+              repeatType: "mirror",
+              delay: p.delay,
+            }}
+          />
+        ))}
 
-							const isHighlighted = hoveredNode === node.id || hoveredNode === connectionId;
+        {/* Connection lines */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <defs>
+            <linearGradient
+              id="connectionGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor="#00ff9f" stopOpacity="0.1" />
+              <stop offset="50%" stopColor="#39e6ff" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#00ff9f" stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
 
-							return (
-								<motion.line
-									key={`${node.id}-${connectionId}`}
-									x1={node.x}
-									y1={node.y}
-									x2={connectedNode.x}
-									y2={connectedNode.y}
-									stroke="url(#connectionGradient)"
-									strokeWidth={isHighlighted ? 2 : 1}
-									initial={{ pathLength: 0 }}
-									animate={{
-										pathLength: 1,
-										strokeOpacity: isHighlighted ? 0.8 : 0.3,
-									}}
-									transition={{ duration: 1.5, ease: 'easeInOut' }}
-								/>
-							);
-						})
-					)}
-				</svg>
+          {nodes.map((node) =>
+            node.connections.map((connectionId) => {
+              const connectedNode = nodes.find((n) => n.id === connectionId);
+              if (!connectedNode) return null;
 
-				{/* Constellation Nodes */}
-				{nodes.map((node) => (
-					<motion.div
-						key={node.id}
-						className="absolute pointer-events-auto cursor-pointer"
-						style={{
-							left: node.x - node.size,
-							top: node.y - node.size,
-							width: node.size * 2,
-							height: node.size * 2,
-						}}
-						onHoverStart={() => handleNodeHover(node.id)}
-						onHoverEnd={() => setHoveredNode(null)}
-						whileHover={{ scale: 1.5 }}
-						animate={{
-							opacity: node.brightness,
-							scale: hoveredNode === node.id ? 1.8 : 1,
-						}}
-						transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-					>
-						<div
-							className="w-full h-full rounded-full relative"
-							style={{
-								background: `radial-gradient(circle, ${
-									node.id % 2 === 0 ? '#00ff9f' : '#39e6ff'
-								} 0%, transparent 70%)`,
-								boxShadow:
-									hoveredNode === node.id
-										? `0 0 20px ${node.id % 2 === 0 ? '#00ff9f' : '#39e6ff'}`
-										: `0 0 8px ${node.id % 2 === 0 ? '#00ff9f40' : '#39e6ff40'}`,
-							}}
-						>
-							{hoveredNode === node.id && (
-								<motion.div
-									className="absolute inset-0 rounded-full border border-white/30"
-									initial={{ scale: 1, opacity: 0 }}
-									animate={{ scale: 3, opacity: [0, 0.5, 0] }}
-									transition={{ duration: 1, repeat: Infinity }}
-								/>
-							)}
-						</div>
-					</motion.div>
-				))}
+              const isHighlighted =
+                hoveredNode === node.id || hoveredNode === connectionId;
 
-				{/* Magical Particles */}
-				{particles.map((particle) => (
-					<motion.div
-						key={particle.id}
-						className="absolute pointer-events-none rounded-full"
-						style={{
-							left: particle.x,
-							top: particle.y,
-							width: particle.size,
-							height: particle.size,
-							backgroundColor: particle.color,
-							opacity: particle.opacity,
-							boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
-						}}
-						initial={{ scale: 0 }}
-						animate={{ scale: 1 }}
-						exit={{ scale: 0, opacity: 0 }}
-					/>
-				))}
+              return (
+                <motion.line
+                  key={`${node.id}-${connectionId}`}
+                  x1={node.x}
+                  y1={node.y}
+                  x2={connectedNode.x}
+                  y2={connectedNode.y}
+                  stroke="url(#connectionGradient)"
+                  strokeWidth={isHighlighted ? 2 : 1}
+                  initial={{ pathLength: 0 }}
+                  animate={{
+                    pathLength: 1,
+                    strokeOpacity: isHighlighted ? 0.8 : 0.3,
+                  }}
+                  transition={{ duration: 1.5, ease: "easeInOut" }}
+                />
+              );
+            })
+          )}
+        </svg>
 
-				{/* Interactive Mouse Cursor Effect */}
-				<motion.div
-					className="absolute w-32 h-32 pointer-events-none rounded-full"
-					style={{
-						left: springX,
-						top: springY,
-						background: 'radial-gradient(circle, rgba(0,255,159,0.1) 0%, transparent 70%)',
-						transform: 'translate(-50%, -50%)',
-						filter: 'blur(20px)',
-					}}
-					animate={{
-						scale: hoveredNode ? 1.5 : 1,
-						opacity: hoveredNode ? 0.6 : 0.3,
-					}}
-				/>
-			</div>
+        {/* Constellation Nodes */}
+        {nodes.map((node) => (
+          <motion.div
+            key={node.id}
+            className="absolute pointer-events-auto cursor-pointer"
+            style={{
+              left: node.x - node.size,
+              top: node.y - node.size,
+              width: node.size * 2,
+              height: node.size * 2,
+            }}
+            onHoverStart={() => handleNodeHover(node.id)}
+            onHoverEnd={() => setHoveredNode(null)}
+            whileHover={{ scale: 1.5 }}
+            animate={{
+              opacity: node.brightness,
+              scale: hoveredNode === node.id ? 1.8 : 1,
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          >
+            <div
+              className="w-full h-full rounded-full relative"
+              style={{
+                background: `radial-gradient(circle, ${
+                  node.id % 2 === 0 ? "#00ff9f" : "#39e6ff"
+                } 0%, transparent 70%)`,
+                boxShadow:
+                  hoveredNode === node.id
+                    ? `0 0 20px ${node.id % 2 === 0 ? "#00ff9f" : "#39e6ff"}`
+                    : `0 0 8px ${
+                        node.id % 2 === 0 ? "#00ff9f40" : "#39e6ff40"
+                      }`,
+              }}
+            >
+              {hoveredNode === node.id && (
+                <motion.div
+                  className="absolute inset-0 rounded-full border border-white/30"
+                  initial={{ scale: 1, opacity: 0 }}
+                  animate={{ scale: 3, opacity: [0, 0.5, 0] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                />
+              )}
+            </div>
+          </motion.div>
+        ))}
 
-			{/* Hero Content */}
-			<div className="relative z-10 text-center max-w-4xl mx-auto px-4">
-				<motion.div
-					initial={{ opacity: 0, y: 30 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.8, delay: 0.2 }}
-				>
-					<motion.h1
-						className="text-4xl md:text-6xl lg:text-7xl text-white mb-6 relative"
-						animate={{
-							textShadow: [
-								'0 0 20px rgba(0,255,159,0.3)',
-								'0 0 30px rgba(57,230,255,0.4)',
-								'0 0 20px rgba(0,255,159,0.3)',
-							],
-						}}
-						transition={{ duration: 4, repeat: Infinity }}
-					>
-						Master Web Development
-						<motion.span
-							className="absolute -top-4 -right-4 text-2xl"
-							animate={{
-								rotate: [0, 10, -10, 0],
-								scale: [1, 1.1, 1],
-							}}
-							transition={{ duration: 3, repeat: Infinity }}
-						>
-							✨
-						</motion.span>
-					</motion.h1>
+        {/* Magical Particles */}
+        {particles.map((particle) => (
+          <motion.div
+            key={particle.id}
+            className="absolute pointer-events-none rounded-full"
+            style={{
+              left: particle.x,
+              top: particle.y,
+              width: particle.size,
+              height: particle.size,
+              backgroundColor: particle.color,
+              opacity: particle.opacity,
+              boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
+            }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+          />
+        ))}
 
-					<motion.p
-						className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ duration: 0.8, delay: 0.5 }}
-					>
-						Through <span className="text-[#00ff9f]">Wisdom</span>,
-						<span className="text-[#39e6ff]"> Design</span>, and
-						<span className="text-[#00ff9f]"> Mastery</span>
-					</motion.p>
-				</motion.div>
+        {/* Interactive Mouse Cursor Effect */}
+        <motion.div
+          className="absolute w-32 h-32 pointer-events-none rounded-full"
+          style={{
+            left: springX,
+            top: springY,
+            background:
+              "radial-gradient(circle, rgba(0,255,159,0.1) 0%, transparent 70%)",
+            transform: "translate(-50%, -50%)",
+            filter: "blur(20px)",
+          }}
+          animate={{
+            scale: hoveredNode ? 1.5 : 1,
+            opacity: hoveredNode ? 0.6 : 0.3,
+          }}
+        />
+      </div>
 
-				<motion.div
-					className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.8, delay: 0.8 }}
-				>
-					<Link href="/auth">
-						<Button
-							size="lg"
-							className="cursor-pointer bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/25 transition-all duration-300 group relative overflow-hidden"
-						>
-							<motion.div
-								className="absolute inset-0 bg-white/20"
-								initial={{ x: '-100%' }}
-								whileHover={{ x: '100%' }}
-								transition={{ duration: 0.6 }}
-							/>
-							<Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-							Start Learning
-						</Button>
-					</Link>
+      {/* Hero Content */}
+      <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <motion.h1
+            className="text-4xl md:text-6xl lg:text-7xl text-white mb-6 relative"
+            animate={{
+              textShadow: [
+                "0 0 20px rgba(0,255,159,0.3)",
+                "0 0 30px rgba(57,230,255,0.4)",
+                "0 0 20px rgba(0,255,159,0.3)",
+              ],
+            }}
+            transition={{ duration: 4, repeat: Infinity }}
+          >
+            Master Web Development
+            <motion.span
+              className="absolute -top-4 -right-4 text-2xl"
+              animate={{
+                rotate: [0, 10, -10, 0],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              ✨
+            </motion.span>
+          </motion.h1>
 
-					<Button
-						variant="outline"
-						size="lg"
-						className="cursor-pointer border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] transition-all duration-300 group"
-					>
-						<Code className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-						View Curriculum
-					</Button>
-				</motion.div>
+          <motion.p
+            className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+          >
+            Through <span className="text-[#00ff9f]">Wisdom</span>,
+            <span className="text-[#39e6ff]"> Design</span>, and
+            <span className="text-[#00ff9f]"> Mastery</span>
+          </motion.p>
+        </motion.div>
 
-				{/* Floating metrics */}
-				<motion.div
-					className="flex justify-center gap-8 mt-12 text-center"
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.8, delay: 1.2 }}
-				>
-					{metricItems.map((metric, index) => (
-						<motion.div
-							key={metric.label}
-							className="relative"
-							whileHover={{ scale: 1.05 }}
-							// use keyframe animation with stable per-metric delay stored in metricDelaysRef
-							animate={{ y: [0, -6, 0] }}
-							transition={{
-								duration: 2,
-								repeat: Infinity,
-								delay: metricDelaysRef.current[index],
-							}}
-						>
-							<div className="text-2xl md:text-3xl text-[#00ff9f] mb-1">{metric.value}</div>
-							<div className="text-sm text-gray-400">{metric.label}</div>
-						</motion.div>
-					))}
-				</motion.div>
-			</div>
-		</section>
-	);
+        <motion.div
+          className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.8 }}
+        >
+          <Button
+            size="lg"
+            onClick={heroAction}
+            className="cursor-pointer bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/25 transition-all duration-300 group relative overflow-hidden"
+          >
+            <motion.div
+              className="absolute inset-0 bg-white/20"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "100%" }}
+              transition={{ duration: 0.6 }}
+            />
+            <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+            {label}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="lg"
+            className="cursor-pointer border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] transition-all duration-300 group"
+          >
+            <Code className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
+            View Curriculum
+          </Button>
+        </motion.div>
+
+        {/* Floating metrics */}
+        <motion.div
+          className="flex justify-center gap-8 mt-12 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1.2 }}
+        >
+          {metricItems.map((metric, index) => (
+            <motion.div
+              key={metric.label}
+              className="relative"
+              whileHover={{ scale: 1.05 }}
+              animate={{ y: [0, -6, 0] }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                delay: metricDelaysRef.current[index],
+              }}
+            >
+              <div className="text-2xl md:text-3xl text-[#00ff9f] mb-1">
+                {metric.value}
+              </div>
+              <div className="text-sm text-gray-400">{metric.label}</div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
 }

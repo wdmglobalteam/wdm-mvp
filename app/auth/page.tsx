@@ -1,389 +1,429 @@
-'use client';
+// --- filename: app/auth/page.tsx ---
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { motion } from 'framer-motion';
-import { FaGoogle } from 'react-icons/fa';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { AuthBackground } from '@/components/AuthBackground';
-import PasswordStrengthMeter, {
-	validatePasswordComplexity,
-} from '@/components/PasswordStrengthMeter';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
-
-const FULAFIA_SCHOOL_ID = 'db2c8a7d-841f-41a9-9c07-f3fd61d8a646';
+import React, { useState } from "react";
+import AuthBackground from "@/components/AuthBackground";
+import CursorEffect from "@/components/CursorEffect";
+import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function AuthPage() {
-	const [email, setEmail] = useState('');
-	const [password, setPassword] = useState('');
-	const [matric, setMatric] = useState('');
-	const [whatsapp, setWhatsapp] = useState('');
-	const [pwComplex, setPwComplex] = useState(() => validatePasswordComplexity('', 6));
-	useEffect(() => {
-		setPwComplex(validatePasswordComplexity(password, 6));
-	}, [password]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, signup, resendVerification } = useAuth();
+  
+  const [mode, setMode] = useState<"signIn" | "signUp">("signUp");
+  const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-	const [matricValid, setMatricValid] = useState<boolean | null>(null);
-	const [whatsappValid, setWhatsappValid] = useState<boolean | null>(null);
+  // Check for URL parameters
+  React.useEffect(() => {
+    const verified = searchParams.get('verified');
+    const error = searchParams.get('error');
+    
+    if (verified) {
+      setMessage('✅ Email verified! You can now sign in.');
+    }
+    if (error) {
+      setMessage(`❌ ${error}`);
+    }
+  }, [searchParams]);
 
-	const [matricUnique, setMatricUnique] = useState<boolean | null>(null);
-	const [whatsappUnique, setWhatsappUnique] = useState<boolean | null>(null);
+  // Email validation
+  const validateEmail = (value: string) => {
+    if (!value) return false;
+    const re =
+      /^(?:[a-zA-Z0-9!#$%&'*+\-/=?^_`{|}~]+(?:\.[a-zA-Z0-9!#$%&'*+\-/=?^_`{|}~]+)*|"(?:\\[\s\S]|[^"\\])*")@(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}|(?:\[(?:[0-9]{1,3}\.){3}[0-9]{1,3}\]))$/;
+    return re.test(value.trim());
+  };
 
-	const [loading, setLoading] = useState(false);
-	const [mode, setMode] = useState<'signup' | 'signin'>('signup');
-	const [message, setMessage] = useState('');
+  const isEmailValid = React.useMemo(() => validateEmail(email), [email]);
 
-	// ============================
-	// Helpers
-	// ============================
+  // Password validation
+  const isPasswordValid = React.useMemo(() => {
+    const minLength = 6;
+    if (!password || password.length < minLength) return false;
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]/.test(password);
+    const categoriesMet = [hasLower, hasUpper, hasNumber, hasSpecial].filter(
+      Boolean
+    ).length;
+    return categoriesMet >= 3 && password.length >= minLength;
+  }, [password]);
 
-	const normalizeWhatsapp = (value: string): string | null => {
-		try {
-			const parsed = parsePhoneNumberFromString(value, 'NG'); // assume NG by default
-			if (parsed && parsed.isValid()) {
-				return parsed.number; // always in E.164, e.g. 2349064354586
-			}
-		} catch {
-			return null;
-		}
-		return null;
-	};
+  const canCreateAccount =
+    mode === "signUp" ? isEmailValid && isPasswordValid : true;
 
-	const validateMatric = (value: string): boolean => {
-		const formatted = value.trim().toUpperCase();
-		return /^\d{4}\/[A-Z]{2,}\/[A-Z]{2,}\/\d{3,}$/.test(formatted);
-	};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
 
-	// ============================
-	// Live Validation
-	// ============================
+    if (mode === "signUp" && !canCreateAccount) {
+      setEmailTouched(true);
+      setMessage("Please provide a valid email and a stronger password.");
+      return;
+    }
 
-	useEffect(() => {
-		if (!matric) {
-			setMatricValid(null);
-			return;
-		}
-		setMatricValid(validateMatric(matric));
-	}, [matric]);
+    setLoading(true);
 
-	useEffect(() => {
-		if (!whatsapp) {
-			setWhatsappValid(null);
-			return;
-		}
-		setWhatsappValid(normalizeWhatsapp(whatsapp) !== null);
-	}, [whatsapp]);
+    try {
+      if (mode === "signUp") {
+        const result = await signup(email, password);
+        
+        if (!result.success) {
+          if (result.error?.toLowerCase().includes("already registered")) {
+            setMessage("⚠️ Email already registered. Try signing in instead.");
+          } else {
+            setMessage(`❌ Sign-up failed: ${result.error}`);
+          }
+        } else {
+          setMessage(
+            "✅ Account created! Please check your inbox/spam to verify your email before signing in."
+          );
+        }
+      } else {
+        const result = await login(email, password);
+        
+        if (!result.success) {
+          if (result.error?.toLowerCase().includes("verify your email")) {
+            setMessage(
+              "⚠️ Please verify your email before signing in. Check your inbox/spam for our verification email."
+            );
+          } else if (result.error?.toLowerCase().includes("invalid")) {
+            setMessage("❌ Invalid email or password.");
+          } else {
+            setMessage(`❌ ${result.error}`);
+          }
+        } else {
+          // Success - redirect to dashboard
+          router.push("/dashboard");
+        }
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      setMessage("Authentication error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-	// ============================
-	// Uniqueness Checks (debounced)
-	// ============================
+  const handleGoogleSignIn = async () => {
+    setMessage("Google OAuth not yet configured. Please use email/password.");
+  };
 
-	useEffect(() => {
-		if (!matricValid) {
-			setMatricUnique(null);
-			return;
-		}
-		const timeout = setTimeout(() => {
-			const formatted = matric.trim().toUpperCase();
-			supabase
-				.from('profiles')
-				.select('id')
-				.eq('school_id', FULAFIA_SCHOOL_ID)
-				.eq('matric_number', formatted)
-				.then(({ data }) => {
-					setMatricUnique(data?.length === 0);
-				});
-		}, 500); // debounce 500ms
-		return () => clearTimeout(timeout);
-	}, [matric, matricValid]);
+  const handleEmailBlur = () => {
+    setEmailTouched(true);
+  };
 
-	useEffect(() => {
-		if (!whatsappValid) {
-			setWhatsappUnique(null);
-			return;
-		}
-		const timeout = setTimeout(() => {
-			const normalized = normalizeWhatsapp(whatsapp);
-			if (!normalized) return;
-			supabase
-				.from('profiles')
-				.select('id')
-				.eq('whatsapp_number', normalized)
-				.then(({ data }) => {
-					setWhatsappUnique(data?.length === 0);
-				});
-		}, 500);
-		return () => clearTimeout(timeout);
-	}, [whatsapp, whatsappValid]);
+  const handleResendVerification = async () => {
+    if (!email) {
+      setMessage("Please enter your email address");
+      return;
+    }
 
-	useEffect(() => {
-		const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-			if (!session?.user) return;
-			const user = session.user;
+    setLoading(true);
+    const result = await resendVerification(email);
+    setLoading(false);
 
-			// Extract info from Google
-			const displayName = user.user_metadata?.full_name || user.email?.split('@')[0];
-			const avatarUrl = user.user_metadata?.avatar_url || null;
+    if (result.success) {
+      setMessage("✅ Verification email sent! Check your inbox.");
+    } else {
+      setMessage(`❌ ${result.error}`);
+    }
+  };
 
-			// Ensure profile exists
-			const { data: existingProfile } = await supabase
-				.from('profiles')
-				.select('id')
-				.eq('id', user.id)
-				.single();
+  return (
+    <div className="min-h-screen relative">
+      <AuthBackground />
+      <CursorEffect highlight={true} />
+      <div className="max-w-6xl mx-auto relative z-10 px-4 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          {/* Left hero */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight text-white">
+              WDM PathMastery
+            </h1>
+            <p className="text-lg text-gray-300 max-w-xl">
+              Learn the in-demand skills with curated paths, bite-sized lessons,
+              and a community that helps you stay accountable.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setMode("signUp")}
+                className="px-5 py-3 bg-indigo-600 rounded-lg button-glow"
+              >
+                Create account
+              </button>
+              <button
+                onClick={() => setMode("signIn")}
+                className="px-5 py-3 border border-gray-600 rounded-lg"
+              >
+                Sign in
+              </button>
+            </div>
+            <div className="mt-6 text-sm text-gray-400">
+              Trusted by learners across campuses.{" "}
+              <span className="text-indigo-300">Lifetime access — ₦1,000.</span>
+            </div>
+          </motion.div>
 
-			if (!existingProfile) {
-				// Create new profile with matric & WhatsApp entered on form
-				const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
-				const formattedMatric = matric.trim().toUpperCase();
+          {/* Right card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#06132a] p-6 rounded-2xl shadow-xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-lg font-semibold">
+                {mode === "signIn" ? "Welcome back" : "Create your account"}
+              </div>
+              <div className="text-sm text-gray-400">
+                {mode === "signIn" ? "Sign in to continue" : "Join PathMastery"}
+              </div>
+            </div>
 
-				await fetch('/api/profile', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${session.access_token}`,
-					},
-					body: JSON.stringify({
-						display_name: displayName,
-						avatar_url: avatarUrl,
-						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-						school_id: FULAFIA_SCHOOL_ID,
-						matric_number: formattedMatric,
-						whatsapp_number: normalizedWhatsapp,
-					}),
-				});
-			}
-		});
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                {/* EMAIL */}
+                <div className="col-span-1 md:col-span-2 relative">
+                  <label className="text-xs text-gray-300">Email</label>
+                  <div className="mt-1 relative">
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onBlur={handleEmailBlur}
+                      type="email"
+                      required
+                      aria-invalid={emailTouched && !isEmailValid}
+                      aria-describedby="email-help"
+                      className={`cursor-text w-full p-3 rounded bg-transparent border ${
+                        emailTouched && !isEmailValid
+                          ? "border-rose-500"
+                          : "border-gray-700"
+                      } pr-12`}
+                    />
+                    {/* Animated indicator */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <motion.div
+                        initial={false}
+                        animate={
+                          isEmailValid
+                            ? { scale: [0.8, 1.06, 1], opacity: 1 }
+                            : emailTouched
+                            ? { x: [0, -4, 0], opacity: 1 }
+                            : { opacity: 0.7 }
+                        }
+                        transition={
+                          isEmailValid
+                            ? { duration: 0.45, ease: "easeOut" }
+                            : { duration: 0.25 }
+                        }
+                        className="flex items-center justify-center w-8 h-8 rounded-full"
+                        aria-hidden
+                      >
+                        {isEmailValid ? (
+                          <svg
+                            className="w-5 h-5 text-green-400"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        ) : emailTouched ? (
+                          <svg
+                            className="w-5 h-5 text-rose-400"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M15 9L9 15M9 9l6 6" />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="w-5 h-5 text-gray-400"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="0"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M4 4h16v16H4z" />
+                          </svg>
+                        )}
+                      </motion.div>
+                    </div>
+                  </div>
+                  <div id="email-help" className="mt-2 text-xs">
+                    {emailTouched && !isEmailValid ? (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-rose-400"
+                      >
+                        Please enter a valid email (e.g. yourname@example.com).
+                      </motion.p>
+                    ) : (
+                      <p className="text-gray-500"></p>
+                    )}
+                  </div>
+                </div>
 
-		return () => listener.subscription.unsubscribe();
-	}, [matric, whatsapp]);
+                {/* PASSWORD */}
+                <div className="col-span-1">
+                  <label className="text-xs text-gray-300">Password</label>
+                  <input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type={showPassword ? "text" : "password"}
+                    required
+                    className={`cursor-text w-full p-3 rounded bg-transparent border ${
+                      password && !isPasswordValid
+                        ? "border-rose-500"
+                        : "border-gray-700"
+                    }`}
+                  />
+                  <div className="mt-2 text-xs flex items-center justify-between">
+                    <div className="text-gray-400">
+                      {isPasswordValid ? (
+                        <span className="text-green-400">
+                          Password meets requirements
+                        </span>
+                      ) : password ? (
+                        <span className="text-rose-400">
+                          Use at least 6 chars + mix of upper, lower,
+                          numbers/symbols
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">
+                          Create a strong password
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="text-sm text-gray-400 underline"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
 
-	// ============================
-	// Handle Auth
-	// ============================
+                {/* Password meter */}
+                <div className="col-span-1 hidden md:block">
+                  <PasswordStrengthMeter password={password} minLength={6} />
+                </div>
+                <div className="col-span-1 md:hidden">
+                  <PasswordStrengthMeter password={password} minLength={6} />
+                </div>
+              </div>
 
-	const handleGoogleSignIn = async () => {
-		setLoading(true);
-		setMessage('');
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={
+                      loading || (mode === "signUp" && !canCreateAccount)
+                    }
+                    aria-disabled={
+                      loading || (mode === "signUp" && !canCreateAccount)
+                    }
+                    className={`px-4 py-2 rounded-md ${
+                      loading
+                        ? "bg-indigo-400 cursor-wait"
+                        : mode === "signUp" && !canCreateAccount
+                        ? "bg-indigo-700/40 cursor-not-allowed ring-0 opacity-70"
+                        : "bg-indigo-600 button-glow"
+                    }`}
+                  >
+                    {mode === "signIn"
+                      ? loading
+                        ? "Signing in..."
+                        : "Sign in"
+                      : loading
+                      ? "Creating..."
+                      : "Create account"}
+                  </button>
 
-		// Ensure matric & whatsapp are entered
-		if (!matric || !whatsapp) {
-			setMessage('Please enter both Matric Number and WhatsApp Number.');
-			setLoading(false);
-			return;
-		}
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    className="px-3 py-2 border border-gray-700 rounded-md"
+                  >
+                    Sign in with Google
+                  </button>
+                </div>
+                <div className="text-sm text-gray-400">
+                  <button 
+                    type="button" 
+                    className="underline"
+                    onClick={() => router.push('/forgot-password')}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+            </form>
 
-		const { error } = await supabase.auth.signInWithOAuth({
-			provider: 'google',
-			options: {
-				redirectTo: window.location.origin, // back to same page
-			},
-		});
+            {message && (
+              <div className="mt-3 text-sm text-rose-400 whitespace-pre-line">
+                {message}
+                {message.includes("verify your email") && (
+                  <button
+                    onClick={handleResendVerification}
+                    className="ml-2 underline"
+                    disabled={loading}
+                  >
+                    Resend email
+                  </button>
+                )}
+              </div>
+            )}
 
-		if (error) setMessage(error.message);
-		setLoading(false);
-	};
+            <div className="mt-6 text-xs text-gray-400">
+              By continuing you agree to our Terms. WDM uses secure
+              authentication and never shares your info.
+            </div>
 
-	const handleAuth = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setLoading(true);
-		setMessage('');
-
-		if (mode === 'signup') {
-			const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
-			const formattedMatric = matric.trim().toUpperCase();
-
-			if (!normalizedWhatsapp || !validateMatric(formattedMatric)) {
-				setMessage('Invalid matric or WhatsApp format.');
-				setLoading(false);
-				return;
-			}
-			if (!matricUnique || !whatsappUnique) {
-				setMessage('Matric or WhatsApp already registered.');
-				setLoading(false);
-				return;
-			}
-
-			const { data, error } = await supabase.auth.signUp({ email, password });
-			if (error) {
-				setMessage(error.message);
-				setLoading(false);
-				return;
-			}
-
-			if (data.user) {
-				const { data: sessionData } = await supabase.auth.getSession();
-				const token = sessionData?.session?.access_token;
-				if (token) {
-					await fetch('/api/profile', {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({
-							display_name: email.split('@')[0],
-							timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-							school_id: FULAFIA_SCHOOL_ID,
-							matric_number: formattedMatric,
-							whatsapp_number: normalizedWhatsapp,
-						}),
-					});
-				}
-			}
-
-			setMessage('Signup successful! Please check your email.');
-		} else {
-			const { error } = await supabase.auth.signInWithPassword({ email, password });
-			if (error) {
-				// Check if error is "password not set"
-				if (error.message.includes('Invalid login credentials')) {
-					setMessage(
-						'No password set for this email. Please sign in with Google or reset your password.'
-					);
-				} else {
-					setMessage(error.message);
-				}
-				setLoading(false);
-				return;
-			}
-			setMessage('Signin successful!');
-		}
-		setLoading(false);
-	};
-
-	const allValid =
-		email && pwComplex.valid && matricValid && whatsappValid && matricUnique && whatsappUnique;
-
-	// ============================
-	// Render
-	// ============================
-
-	return (
-		<div className="relative min-h-screen flex items-center justify-center">
-			<AuthBackground />
-
-			<motion.div
-				initial={{ opacity: 0, y: 25 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.7 }}
-				className="relative z-10 w-full max-w-md p-8 rounded-2xl backdrop-blur-xl bg-gray-900/70 border border-gray-800/80 shadow-[0_0_25px_rgba(0,255,159,0.2)]"
-			>
-				<h1 className="text-2xl font-semibold text-white mb-6 text-center">
-					{mode === 'signup' ? 'Create Account' : 'Sign In'}
-				</h1>
-
-				<form onSubmit={handleAuth} className="space-y-4">
-					<Input
-						type="email"
-						placeholder="Email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						required
-						className="bg-gray-800/60 text-white border-gray-700"
-					/>
-
-					<Input
-						type="password"
-						placeholder="Password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						required
-						className="bg-gray-800/60 text-white border-gray-700"
-						isValid={pwComplex.valid ?? undefined}
-						showValidation={!!password}
-						message={
-							password
-								? pwComplex.valid
-									? 'Strong password'
-									: 'Min 6 chars + number + upper + lower + symbol'
-								: ''
-						}
-					/>
-
-					<PasswordStrengthMeter password={password} minLength={6} />
-
-					{mode === 'signup' && (
-						<>
-							<Input
-								type="text"
-								placeholder="Matric Number (1234/AB/ABC/5678)"
-								value={matric}
-								onChange={(e) => setMatric(e.target.value)}
-								isValid={matricValid ?? undefined}
-								showValidation={!!matric}
-								message={
-									matricValid
-										? matricUnique === false
-											? 'Matric already registered'
-											: 'Valid matric format'
-										: matric
-										? 'Format must be YYYY/XX/XXX/NNNN'
-										: ''
-								}
-								className="bg-gray-800/60 text-white border-gray-700"
-							/>
-
-							<Input
-								type="text"
-								placeholder="WhatsApp Number (e.g. 09012345678)"
-								value={whatsapp}
-								onChange={(e) => setWhatsapp(e.target.value)}
-								isValid={whatsappValid ?? undefined}
-								showValidation={!!whatsapp}
-								message={
-									whatsappValid
-										? whatsappUnique === false
-											? 'Number already registered'
-											: `Formatted: ${normalizeWhatsapp(whatsapp)}`
-										: whatsapp
-										? 'Invalid number'
-										: ''
-								}
-								className="bg-gray-800/60 text-white border-gray-700"
-							/>
-						</>
-					)}
-
-					<Button
-						onClick={handleGoogleSignIn}
-						disabled={loading || !matricValid || !whatsappValid}
-						className="cursor-pointer w-full flex items-center justify-center gap-2 bg-white text-black hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						<FaGoogle /> Sign in / Sign up with Google
-					</Button>
-
-					{(!matric || !whatsapp) && (
-						<p className="text-red-400 text-sm mt-1 animate-pulse">
-							Please enter both Matric Number and WhatsApp Number
-						</p>
-					)}
-
-					<Button
-						type="submit"
-						disabled={loading || (mode === 'signup' && !allValid)}
-						className="cursor-pointer w-full bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						{loading ? 'Loading...' : mode === 'signup' ? 'Sign Up' : 'Sign In'}
-					</Button>
-				</form>
-
-				<div className="mt-4 flex justify-between text-sm text-gray-400">
-					<Link href="/forgot-password" className="hover:text-[#00ff9f]">
-						Forgot password?
-					</Link>
-					<button
-						onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}
-						className="cursor-pointer hover:text-[#39e6ff]"
-					>
-						{mode === 'signup' ? 'Sign in' : 'Create account'}
-					</button>
-				</div>
-
-				{message && <p className="mt-4 text-center text-emerald-400 animate-pulse">{message}</p>}
-			</motion.div>
-		</div>
-	);
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-gray-500">Need help?</div>
+              <div>
+                <button
+                  onClick={() =>
+                    setMode(mode === "signIn" ? "signUp" : "signIn")
+                  }
+                  className="text-sm underline"
+                >
+                  {mode === "signIn"
+                    ? "Create an account"
+                    : "Have an account? Sign in"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
 }

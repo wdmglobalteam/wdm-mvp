@@ -1,0 +1,1 @@
+export default function Celebration(){ return (<div className='w-full flex items-center justify-center'><div className='p-6 bg-yellow-200 rounded-full animate-pulse'>🎉 Congrats! 🎉</div></div>); }

@@ -1,102 +1,64 @@
 // components/PasswordStrengthMeter.tsx
-'use client';
+"use client";
+import React from "react";
+import { motion } from "framer-motion";
 
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-
-export type ComplexityResult = {
-	length: boolean;
-	number: boolean;
-	upper: boolean;
-	lower: boolean;
-	symbol: boolean;
-	score: number; // 0..100
-	valid: boolean;
+type Props = {
+  password: string;
+  minLength?: number;
 };
 
-export function validatePasswordComplexity(pw: string, minLen = 6): ComplexityResult {
-	const length = pw.length >= minLen;
-	const number = /[0-9]/.test(pw);
-	const upper = /[A-Z]/.test(pw);
-	const lower = /[a-z]/.test(pw);
-	const symbol = /[^A-Za-z0-9]/.test(pw);
-
-	const rules = [length, number, upper, lower, symbol];
-	const passed = rules.filter(Boolean).length;
-	const score = Math.round((passed / rules.length) * 100);
-	const valid = passed === rules.length;
-
-	return { length, number, upper, lower, symbol, score, valid };
+function checkRules(password: string, minLength = 6) {
+  return {
+    length: password.length >= minLength,
+    number: /\d/.test(password),
+    symbol: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+  };
 }
 
-export default function PasswordStrengthMeter({
-	password,
-	minLength = 6,
-	className = '',
-}: {
-	password: string;
-	minLength?: number;
-	className?: string;
-}) {
-	const res = useMemo(
-		() => validatePasswordComplexity(password ?? '', minLength),
-		[password, minLength]
-	);
+export default function PasswordStrengthMeter({ password, minLength = 6 }: Props) {
+  const rules = checkRules(password, minLength);
+  const score = Object.values(rules).reduce((a,b) => a + (b?1:0), 0);
+  const pct = Math.floor((score / Object.keys(rules).length) * 100);
+  const color = score <= 2 ? "bg-rose-500" : score === 3 ? "bg-amber-400" : "bg-emerald-400";
 
-	// color mapping: red -> amber -> emerald
-	const color =
-		res.score < 40
-			? 'from-[#ff6b6b] to-[#ffb97a]'
-			: res.score < 80
-			? 'from-[#ffb97a] to-[#ffd86b]'
-			: 'from-[#00ff9f] to-[#39e6ff]';
+  return (
+    <div className="p-3 rounded-md border border-gray-700 bg-[#041026]">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium">Password strength</div>
+        <div className="text-xs text-gray-300">{pct}%</div>
+      </div>
+      <div className="mt-2 w-full bg-gray-800 h-2 rounded">
+        <motion.div className={`${color} h-2 rounded`} style={{ width: `${pct}%` }} transition={{duration:0.25}} />
+      </div>
 
-	return (
-		<div className={`w-full ${className}`}>
-			{/* progress bar */}
-			<div className="w-full bg-white/4 rounded-full h-2 overflow-hidden mb-3">
-				<motion.div
-					className={`h-2 rounded-full bg-gradient-to-r ${color}`}
-					initial={{ width: 0 }}
-					animate={{ width: `${res.score}%` }}
-					transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-					aria-hidden
-				/>
-			</div>
-
-			{/* rules list */}
-			<div className="grid grid-cols-1 gap-1 text-xs">
-				<RuleRow label={`Min ${minLength} characters`} passed={res.length} />
-				<RuleRow label="At least 1 number" passed={res.number} />
-				<RuleRow label="At least 1 uppercase" passed={res.upper} />
-				<RuleRow label="At least 1 lowercase" passed={res.lower} />
-				<RuleRow label="At least 1 symbol" passed={res.symbol} />
-			</div>
-
-			{/* hidden accessible text */}
-			<div className="sr-only" aria-live="polite">
-				{res.valid
-					? 'Password meets complexity requirements.'
-					: `Password strength ${res.score} percent.`}
-			</div>
-		</div>
-	);
-}
-
-function RuleRow({ label, passed }: { label: string; passed: boolean }) {
-	return (
-		<div className="flex items-center gap-2">
-			<span
-				className={`w-4 h-4 flex items-center justify-center rounded-full text-[10px] font-medium ${
-					passed
-						? 'bg-[#00ff9f] text-black shadow-[0_0_8px_rgba(0,255,159,0.2)]'
-						: 'bg-white/6 text-gray-300'
-				}`}
-				aria-hidden
-			>
-				{passed ? '✓' : '–'}
-			</span>
-			<span className={`text-xs ${passed ? 'text-emerald-300' : 'text-gray-400'}`}>{label}</span>
-		</div>
-	);
+      <ul className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-300">
+        {[
+          { key: "length", label: `At least ${minLength} characters` },
+          { key: "number", label: "Contains a number" },
+          { key: "symbol", label: "Contains a symbol" },
+          { key: "upper", label: "Uppercase letter" },
+          { key: "lower", label: "Lowercase letter" },
+        ].map((r) => {
+          const ok = (rules as any)[r.key];
+          return (
+            <li key={r.key} className="flex items-center gap-2">
+              <motion.span
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: ok ? 1 : 0.8, opacity: ok ? 1 : 0.6 }}
+                transition={{ duration: 0.18 }}
+                className={`w-5 h-5 flex items-center justify-center rounded-full ${ok ? "bg-emerald-400 text-black" : "bg-gray-800 border border-gray-700"}`}
+                aria-hidden
+              >
+                {ok ? "✓" : "•"}
+              </motion.span>
+              <span className="text-xs">{r.label}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }

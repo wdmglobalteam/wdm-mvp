@@ -1,153 +1,143 @@
-'use client';
+// components/AuthBackground.tsx
+"use client";
+import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+/**
+ * AuthBackground - a performant, simple starfield + soft lines background with cursor aura.
+ * Designed to be lightweight and avoid undefined animation values.
+ */
 
-interface Node {
-	id: number;
-	x: number; // percentage
-	y: number; // percentage
-}
+type Node = { id: number; x: number; y: number; vx: number; vy: number };
 
-export function AuthBackground() {
-	const [nodes, setNodes] = useState<Node[]>([]);
-	const [mouse, setMouse] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-	const containerRef = useRef<HTMLDivElement>(null);
+export default function AuthBackground() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const mouse = useRef({ x: -9999, y: -9999 });
 
-	// Motion values for cursor aura (smooth follow)
-	const mvX = useMotionValue(0);
-	const mvY = useMotionValue(0);
-	const springX = useSpring(mvX, { stiffness: 120, damping: 25 });
-	const springY = useSpring(mvY, { stiffness: 120, damping: 25 });
+  useEffect(() => {
+    // initialize nodes
+    const w = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const h = typeof window !== "undefined" ? window.innerHeight : 800;
+    const n = Math.max(12, Math.floor((w * h) / 80000));
+    const arr: Node[] = [];
+    for (let i = 0; i < n; i++) {
+      arr.push({
+        id: i,
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+      });
+    }
+    setNodes(arr);
 
-	useEffect(() => {
-		// Generate constellation nodes
-		const newNodes: Node[] = Array.from({ length: 15 }, (_, i) => ({
-			id: i,
-			x: Math.random() * 100,
-			y: Math.random() * 100,
-		}));
-		setNodes(newNodes);
-	}, []);
+    function onMove(e: MouseEvent) {
+      mouse.current = { x: e.clientX, y: e.clientY };
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseleave", () => {
+      mouse.current = { x: -9999, y: -9999 };
+    });
 
-	const handleMouseMove = useCallback(
-		(e: React.MouseEvent) => {
-			if (!containerRef.current) return;
-			const rect = containerRef.current.getBoundingClientRect();
-			const x = ((e.clientX - rect.left) / rect.width) * 100;
-			const y = ((e.clientY - rect.top) / rect.height) * 100;
-			setMouse({ x, y });
-			mvX.set(e.clientX - rect.left);
-			mvY.set(e.clientY - rect.top);
-		},
-		[mvX, mvY]
-	);
+    let last = performance.now();
+    function tick(now: number) {
+      const dt = Math.min(50, now - last) / 16.666;
+      last = now;
+      setNodes((prev) =>
+        prev.map((p) => {
+          let nx = p.x + p.vx * dt;
+          let ny = p.y + p.vy * dt;
+          if (nx < 0 || nx > window.innerWidth) p.vx *= -1;
+          if (ny < 0 || ny > window.innerHeight) p.vy *= -1;
+          nx = Math.max(0, Math.min(window.innerWidth, nx));
+          ny = Math.max(0, Math.min(window.innerHeight, ny));
+          return { ...p, x: nx, y: ny };
+        })
+      );
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
 
-	return (
-		<div
-			ref={containerRef}
-			onMouseMove={handleMouseMove}
-			className="absolute inset-0 bg-gradient-to-br from-black via-gray-950 to-black overflow-hidden"
-		>
-			{/* Connection lines */}
-			<svg className="absolute inset-0 w-full h-full pointer-events-none">
-				<defs>
-					<linearGradient id="authLineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-						<stop offset="0%" stopColor="#00ff9f" stopOpacity="0.15" />
-						<stop offset="100%" stopColor="#39e6ff" stopOpacity="0.15" />
-					</linearGradient>
-				</defs>
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("mousemove", onMove);
+    };
+  }, []);
 
-				{nodes.map((node, i) =>
-					nodes.map((other, j) => {
-						if (i >= j) return null;
-						const dx = node.x - other.x;
-						const dy = node.y - other.y;
-						const distance = Math.sqrt(dx * dx + dy * dy);
-						if (distance < 20) {
-							const mouseDist = Math.sqrt(
-								Math.pow(mouse.x - (node.x + other.x) / 2, 2) +
-									Math.pow(mouse.y - (node.y + other.y) / 2, 2)
-							);
-							const glow = mouseDist < 25 ? 0.4 : 0.15;
+  return (
+    <div
+      ref={ref}
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    >
+      {/* subtle gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#001028] via-[#04102a] to-[#08102a] opacity-80"></div>
 
-							return (
-								<motion.line
-									key={`${node.id}-${other.id}`}
-									x1={`${node.x}%`}
-									y1={`${node.y}%`}
-									x2={`${other.x}%`}
-									y2={`${other.y}%`}
-									stroke="url(#authLineGradient)"
-									strokeWidth="1"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: [0.05, glow, 0.05] }}
-									transition={{
-										duration: 5,
-										repeat: Infinity,
-										delay: Math.random() * 2,
-									}}
-								/>
-							);
-						}
-						return null;
-					})
-				)}
-			</svg>
+      {/* svg layer for lines */}
+      <svg
+        className="absolute inset-0 w-full h-full"
+        width="100%"
+        height="100%"
+      >
+        <defs>
+          <linearGradient id="lineGrad" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stopColor="#00ff9f" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#39e6ff" stopOpacity="0.04" />
+          </linearGradient>
+        </defs>
+        {nodes.map((n) => (
+          <circle
+            key={n.id}
+            cx={n.x}
+            cy={n.y}
+            r={1.2}
+            fill="#8ef0d0"
+            opacity={0.9}
+          />
+        ))}
+        {nodes.map((a, i) =>
+          nodes.slice(i + 1, i + 6).map((b) => {
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 180) return null;
+            const opacity = Math.max(0, 0.22 - dist / 900);
+            return (
+              <line
+                key={`${a.id}-${b.id}`}
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                stroke="url(#lineGrad)"
+                strokeWidth={0.8}
+                strokeOpacity={opacity}
+              />
+            );
+          })
+        )}
+      </svg>
 
-			{/* Pulsing dots */}
-			{nodes.map((node) => {
-				const dx = mouse.x - node.x;
-				const dy = mouse.y - node.y;
-				const dist = Math.sqrt(dx * dx + dy * dy);
-				const attraction = Math.max(0, 1 - dist / 80) * 2;
-
-				return (
-					<motion.div
-						key={node.id}
-						className="absolute rounded-full"
-						style={{
-							width: 5,
-							height: 5,
-							top: `${node.y}%`,
-							left: `${node.x}%`,
-							background: 'radial-gradient(circle, #00ff9f, #39e6ff)',
-							boxShadow: '0 0 6px rgba(0,255,159,0.4)',
-						}}
-						animate={{
-							x: dx * 0.02 * attraction,
-							y: dy * 0.02 * attraction,
-							opacity: [0.3, 0.8, 0.3],
-							scale: [1, 1.3, 1],
-						}}
-						transition={{
-							duration: 6 + Math.random() * 3,
-							repeat: Infinity,
-						}}
-					/>
-				);
-			})}
-
-			{/* Cursor aura */}
-			<motion.div
-				className="absolute w-40 h-40 pointer-events-none rounded-full"
-				style={{
-					left: springX,
-					top: springY,
-					transform: 'translate(-50%, -50%)',
-					background:
-						'radial-gradient(circle, rgba(0,255,159,0.15) 0%, rgba(57,230,255,0.1) 40%, transparent 70%)',
-					filter: 'blur(40px)',
-				}}
-				animate={{
-					scale: [1, 1.2, 1],
-					opacity: [0.3, 0.5, 0.3],
-				}}
-				transition={{
-					duration: 4,
-					repeat: Infinity,
-				}}
-			/>
-		</div>
-	);
+      {/* floating aura - motion with defined initial values */}
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0.25, scale: 1 }}
+          animate={{ opacity: [0.25, 0.5, 0.25], scale: [1, 1.08, 1] }}
+          transition={{ duration: 6, repeat: Infinity }}
+          style={{
+            position: "absolute",
+            left: "20%",
+            top: "10%",
+            width: 240,
+            height: 240,
+            filter: "blur(36px)",
+            background:
+              "radial-gradient(circle at 30% 30%, rgba(99,102,241,0.12), rgba(0,255,159,0.06) 40%, transparent 70%)",
+            transform: "translate(-50%,-50%)",
+          }}
+        />
+      </AnimatePresence>
+    </div>
+  );
 }

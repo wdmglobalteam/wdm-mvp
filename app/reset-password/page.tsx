@@ -1,141 +1,129 @@
-'use client';
+// --- filename: app/reset-password/page.tsx ---
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { motion } from 'framer-motion';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { AuthBackground } from '@/components/AuthBackground';
-import PasswordStrengthMeter, {
-	validatePasswordComplexity,
-} from '@/components/PasswordStrengthMeter';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import AuthBackground from "@/components/AuthBackground";
+import CursorEffect from "@/components/CursorEffect";
 
-export default function ResetPasswordPage() {
-	const [password, setPassword] = useState('');
-	const [complex, setComplex] = useState(() => validatePasswordComplexity('', 6));
-	const [loading, setLoading] = useState(false);
-	const [message, setMessage] = useState('');
-	const [expired, setExpired] = useState(false);
-	const [resending, setResending] = useState(false);
-	const router = useRouter();
+export default function ResetPassword() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
-	useEffect(() => {
-		setComplex(validatePasswordComplexity(password, 6));
-	}, [password]);
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-	const handleReset = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!complex.valid) {
-			setMessage('Password does not meet complexity requirements.');
-			return;
-		}
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
 
-		setLoading(true);
-		try {
-			const { error } = await supabase.auth.updateUser({ password });
+    if (!token) {
+      setMessage("Invalid reset link");
+      return;
+    }
 
-			if (error) {
-				if (error.message.toLowerCase().includes('jwt expired') || error.status === 401) {
-					setMessage(
-						'Your reset link has expired or is invalid. Please request a new password reset email.'
-					);
-					setExpired(true);
-				} else {
-					setMessage(`Error: ${error.message}`);
-				}
-			} else {
-				setMessage('Password updated! Redirecting to login...');
-				setExpired(false);
-				// Auto-redirect after 3 seconds
-				setTimeout(() => {
-					router.push('/auth');
-				}, 3000);
-			}
-		} catch {
-			setMessage('Unexpected error. Please try again.');
-		}
-		setLoading(false);
-	};
+    setLoading(true);
+    setMessage(null);
 
-	const requestNewLink = async () => {
-		setResending(true);
-		try {
-			const user = (await supabase.auth.getUser()).data?.user;
-			if (!user?.email) {
-				setMessage('No email found for your account. Try signing up again.');
-				setResending(false);
-				return;
-			}
-			const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-				redirectTo: `${window.location.origin}/reset-password`,
-			});
-			setMessage(error ? error.message : 'A new reset link has been sent to your email.');
-		} catch {
-			setMessage('Failed to send new reset link. Please try again.');
-		}
-		setResending(false);
-	};
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
 
-	return (
-		<div className="relative min-h-screen flex items-center justify-center">
-			<AuthBackground />
+      const data = await response.json();
 
-			<motion.div
-				initial={{ opacity: 0, y: 25 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.7 }}
-				className="relative z-10 w-full max-w-md p-8 rounded-2xl backdrop-blur-xl bg-gray-900/70 border border-gray-800/80 shadow-[0_0_25px_rgba(0,255,159,0.2)]"
-			>
-				<h1 className="text-2xl font-semibold text-white mb-6 text-center">Reset Password</h1>
+      if (response.ok) {
+        setMessage(data.message || "Password updated. You can now sign in.");
+        setSuccess(true);
+        setTimeout(() => router.push("/auth"), 2000);
+      } else {
+        setMessage(data.error || "Failed to reset password");
+        setSuccess(false);
+      }
+    } catch (err) {
+      setMessage("Network error. Please try again.");
+      setSuccess(false);
+      console.warn(err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-				<form onSubmit={handleReset} className="space-y-4">
-					<Input
-						type="password"
-						placeholder="New password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						isValid={complex.valid ? true : undefined}
-						showValidation={!!password}
-						message={
-							password
-								? complex.valid
-									? 'Strong password'
-									: 'Min 6 chars, number, upper, lower & symbol'
-								: ''
-						}
-						className="bg-gray-800/60 text-white border-gray-700"
-					/>
+  if (!token) {
+    return (
+      <div className="min-h-screen relative">
+        <AuthBackground />
+        <CursorEffect />
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-[#06132a] rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-bold mb-4">Invalid Reset Link</h2>
+            <p className="text-gray-300 mb-4">
+              This password reset link is invalid or has expired.
+            </p>
+            <button
+              onClick={() => router.push("/forgot-password")}
+              className="w-full p-3 rounded bg-indigo-600 text-white"
+            >
+              Request new link
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-					<PasswordStrengthMeter password={password} minLength={6} />
+  return (
+    <div className="min-h-screen relative">
+      <AuthBackground />
+      <CursorEffect />
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-[#06132a] rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-bold mb-4">Reset password</h2>
 
-					<Button
-						type="submit"
-						disabled={loading || !complex.valid}
-						className="w-full bg-gradient-to-r from-[#00ff9f] to-[#39e6ff] text-black hover:shadow-lg hover:shadow-[#00ff9f]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-					>
-						{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						{loading ? 'Updating...' : 'Update Password'}
-					</Button>
-				</form>
+          {message && (
+            <div
+              className={`mb-3 text-sm ${
+                success ? "text-green-400" : "text-rose-400"
+              }`}
+            >
+              {message}
+            </div>
+          )}
 
-				{message && <p className="mt-4 text-center text-emerald-400 animate-pulse">{message}</p>}
-
-				{expired && (
-					<div className="mt-6 text-center">
-						<Button
-							onClick={requestNewLink}
-							disabled={resending}
-							variant="outline"
-							className="cursor-pointer border-[#39e6ff]/50 text-[#39e6ff] hover:bg-[#39e6ff]/10 hover:border-[#39e6ff] flex items-center justify-center"
-						>
-							{resending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-							{resending ? 'Sending...' : 'Request New Reset Link'}
-						</Button>
-					</div>
-				)}
-			</motion.div>
-		</div>
-	);
+          {!success && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-300 block mb-2">
+                  New password
+                </label>
+                <input
+                  type="password"
+                  className="w-full p-3 rounded bg-transparent border border-gray-700"
+                  placeholder="Enter new password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-400 mt-2">
+                  At least 6 characters with mix of uppercase, lowercase,
+                  numbers, and symbols
+                </p>
+              </div>
+              <button
+                disabled={loading}
+                className="w-full p-3 rounded bg-green-600 text-white disabled:opacity-50"
+              >
+                {loading ? "Updating..." : "Set new password"}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
