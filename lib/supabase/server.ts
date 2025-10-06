@@ -1,44 +1,32 @@
 // --- filename: lib/supabase/server.ts ---
-// /**
-//  * Server Supabase helpers for Next.js App Router
-//  *
-//  * Important:
-//  * - Do NOT call `cookies()` at module initialization time.
-//  * - Pass the cookies *function* (not its result) into the auth-helpers so
-//  *   they can call it in the correct request context.
-//  *
-//  * Exports:
-//  * - createServerClient()  -> use in Server Components (app/*/page.tsx, layout.tsx)
-//  * - createRouteClient()   -> use in Route Handlers (app/api/*/route.ts)
-//  */
-
 import {
-  createServerComponentClient,
-  createRouteHandlerClient,
-} from "@supabase/auth-helpers-nextjs";
-import type { Database } from "@/types/supabase";
-import { cookies as nextCookies } from "next/headers";
+	createServerComponentClient,
+	createRouteHandlerClient,
+} from '@supabase/auth-helpers-nextjs';
+import type { Database } from '@/types/supabase';
+import { cookies as nextCookies } from 'next/headers';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Create a Supabase client for Server Components.
- *
- * @param options.cookies Optional cookies function to use (defaults to next/headers cookies)
+ * Create a typed Supabase client for Server Components.
+ * We assert the factory result to SupabaseClient<Database> because
+ * @supabase/auth-helpers-nextjs' factory can lose the Database generic in TS inference,
+ * which leads to table types resolving to `never` in downstream code.
  */
-export function createServerClient(options?: { cookies?: typeof nextCookies }) {
-  const cookiesFn = options?.cookies ?? nextCookies;
-  return createServerComponentClient<Database>({
-    cookies: cookiesFn,
-  });
+export function createServerClient(options?: {
+	cookies?: typeof nextCookies;
+}): SupabaseClient<Database> {
+	const cookiesFn = options?.cookies ?? nextCookies;
+	// NOTE: the `as unknown as SupabaseClient<Database>` cast is intentional and safe.
+	return createServerComponentClient({ cookies: cookiesFn }) as unknown as SupabaseClient<Database>;
 }
 
 /**
- * Create a Supabase client for Route Handlers (API route handlers).
- *
- * @param options.cookies Optional cookies function to use (defaults to next/headers cookies)
+ * Create a typed Supabase client for Route Handlers (API route handlers).
  */
-export function createRouteClient(options?: { cookies?: typeof nextCookies }) {
-  const cookiesFn = options?.cookies ?? nextCookies;
-  return createRouteHandlerClient<Database>({
-    cookies: cookiesFn,
-  });
+export function createRouteClient(options?: {
+	cookies?: typeof nextCookies;
+}): SupabaseClient<Database> {
+	const cookiesFn = options?.cookies ?? nextCookies;
+	return createRouteHandlerClient({ cookies: cookiesFn }) as unknown as SupabaseClient<Database>;
 }
