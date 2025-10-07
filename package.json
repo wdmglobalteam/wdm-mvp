@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:next\" \"npm run dev:tunnel\"",
     "dev:next": "next dev --turbopack",
-    "dev:tunnel": "node scripts/dev-tunnel.mjs",
-    "changeenv": "node scripts/update-env.mjs",
+    "dev:tunnel": "cloudflared tunnel run wdm-mvp",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint"
@@ -88,6 +87,7 @@
     "shadcn-ui": "^0.9.5",
     "tailwindcss": "^4.1.13",
     "tw-animate-css": "^1.3.8",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.1"
   }
 }

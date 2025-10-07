@@ -1,0 +1,46 @@
+{
+    "name": "@wdm/compass-spectacle",
+    "version": "3.0.0",
+    "description": "80+ production-grade logo animations with physics, personality modes, and morphing effects",
+    "main": "dist/index.js",
+    "module": "dist/index.esm.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "tsc && rollup -c",
+        "dev": "tsc --watch",
+        "type-check": "tsc --noEmit",
+        "clean": "rm -rf dist"
+    },
+    "keywords": [
+        "animation",
+        "logo",
+        "canvas",
+        "physics",
+        "particles",
+        "react",
+        "typescript"
+    ],
+    "author": "WDM",
+    "license": "MIT",
+    "peerDependencies": {
+        "react": ">=16.8.0",
+        "react-dom": ">=16.8.0"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "react-dom": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@types/react": "^18.0.0",
+        "@types/react-dom": "^18.0.0",
+        "typescript": "^5.0.0"
+    }
+}
